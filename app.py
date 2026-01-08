@@ -10,7 +10,8 @@ client = OpenAI()
 
 st.set_page_config(
     page_title="AI Grant Application Assistant",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 st.title("AI-Assisted Grant Application Drafting")
