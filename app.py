@@ -37,23 +37,51 @@ st.info("Fill in the details below, then click **Generate Draft**.")
 # ----------------------------
 def generate_application_answers(inputs):
     prompt = f"""
-You are an Enterprise Ireland Client Advisor drafting responses for an Innovation Voucher application.
+prompt = f"""
+You are drafting responses for an Enterprise Ireland Innovation Voucher application.
 
-Your task is to translate the company’s business context into clear, factual, conservative answers that align with Innovation Voucher evaluation priorities.
+Write in the style of a strong, fundable Innovation Voucher application that aligns with Enterprise Ireland evaluation norms.
 
-Rules:
-- No marketing language
-- No invented facts or assumptions
-- Be conservative, precise, and specific
-- Explicitly reference technical uncertainty and external expertise
-- Frame outputs as investigation and validation, not execution
+Audience:
+- A non-technical but highly experienced Enterprise Ireland evaluator
+- Reviewing many applications
+- Focused on learning value, technical uncertainty, and appropriate use of public funding
 
+Primary evaluation lens (internal to the evaluator):
+- Is there a clearly defined knowledge or technical gap?
+- Is there genuine uncertainty where outcomes are not known in advance?
+- Is external academic or specialist expertise necessary to resolve this uncertainty?
+- Is the scope appropriate to a €5k–€10k Innovation Voucher?
+- Will the outputs inform future technical or commercial decisions regardless of outcome?
+
+Instructions (strict):
+- Write conservatively and precisely
+- Do NOT use marketing or promotional language
+- Do NOT claim uniqueness, competitiveness, or market leadership
+- Do NOT imply implementation, development, or commercial rollout
+- Frame all work as investigation, assessment, validation, or analysis
+- Clearly distinguish between what is currently known and what is uncertain
+- Explicitly reference limitations, unknowns, and risks where relevant
+- Avoid jargon; explain technical concepts plainly
+
+Tone:
+- Analytical
+- Neutral
+- Evidence-oriented
+- Learning-focused
+
+Output requirements:
 Return STRICT JSON ONLY with the following keys:
 - innovative_product
 - primary_issues
 - skills_expertise
 - expected_deliverables
 - company_benefit
+
+For each section:
+- 3–6 sentences
+- Focus on *what will be investigated and why*
+- Avoid stating outcomes as guaranteed
 
 Business context:
 {json.dumps(inputs, indent=2)}
