@@ -36,56 +36,36 @@ st.info("Fill in the details below, then click **Generate Draft**.")
 # AI Drafting Function
 # ----------------------------
 def generate_application_answers(inputs):
-    prompt = f"""
-prompt = f"""
-You are drafting responses for an Enterprise Ireland Innovation Voucher application.
-
-Write in the style of a strong, fundable Innovation Voucher application that aligns with Enterprise Ireland evaluation norms.
-
-Audience:
-- A non-technical but highly experienced Enterprise Ireland evaluator
-- Reviewing many applications
-- Focused on learning value, technical uncertainty, and appropriate use of public funding
-
-Primary evaluation lens (internal to the evaluator):
-- Is there a clearly defined knowledge or technical gap?
-- Is there genuine uncertainty where outcomes are not known in advance?
-- Is external academic or specialist expertise necessary to resolve this uncertainty?
-- Is the scope appropriate to a 5k to 10k Innovation Voucher?
-- Will the outputs inform future technical or commercial decisions regardless of outcome?
-
-Instructions (strict):
-- Write conservatively and precisely
-- Do NOT use marketing or promotional language
-- Do NOT claim uniqueness, competitiveness, or market leadership
-- Do NOT imply implementation, development, or commercial rollout
-- Frame all work as investigation, assessment, validation, or analysis
-- Clearly distinguish between what is currently known and what is uncertain
-- Explicitly reference limitations, unknowns, and risks where relevant
-- Avoid jargon; explain technical concepts plainly
-
-Tone:
-- Analytical
-- Neutral
-- Evidence-oriented
-- Learning-focused
-
-Output requirements:
-Return STRICT JSON ONLY with the following keys:
-- innovative_product
-- primary_issues
-- skills_expertise
-- expected_deliverables
-- company_benefit
-
-For each section:
-- 3–6 sentences
-- Focus on *what will be investigated and why*
-- Avoid stating outcomes as guaranteed
-
-Business context:
-{json.dumps(inputs, indent=2)}
-"""
+    prompt = (
+        "You are drafting responses for an Enterprise Ireland Innovation Voucher application.\n\n"
+        "Write in the style of a strong, fundable Innovation Voucher application that aligns with "
+        "Enterprise Ireland evaluation norms.\n\n"
+        "Audience:\n"
+        "- A non-technical but highly experienced Enterprise Ireland evaluator\n"
+        "- Reviewing many applications\n"
+        "- Focused on learning value, technical uncertainty, and appropriate use of public funding\n\n"
+        "Primary evaluation lens:\n"
+        "- Is there a clearly defined knowledge or technical gap?\n"
+        "- Is there genuine uncertainty where outcomes are not known in advance?\n"
+        "- Is external academic or specialist expertise necessary to resolve this uncertainty?\n"
+        "- Is the scope appropriate to a small Innovation Voucher project?\n"
+        "- Will the outputs inform future technical or commercial decisions regardless of outcome?\n\n"
+        "Instructions (strict):\n"
+        "- Write conservatively and precisely\n"
+        "- Do NOT use marketing or promotional language\n"
+        "- Do NOT imply implementation, development, or commercial rollout\n"
+        "- Frame all work as investigation, assessment, validation, or analysis\n"
+        "- Clearly distinguish between what is known and what is uncertain\n\n"
+        "Output requirements:\n"
+        "Return STRICT JSON ONLY with the following keys:\n"
+        "- innovative_product\n"
+        "- primary_issues\n"
+        "- skills_expertise\n"
+        "- expected_deliverables\n"
+        "- company_benefit\n\n"
+        "Business context:\n"
+        f"{json.dumps(inputs, indent=2)}"
+    )
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -97,6 +77,7 @@ Business context:
     )
 
     return json.loads(response.choices[0].message.content)
+
 
 # ----------------------------
 # Inputs (defined BEFORE use)
