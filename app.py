@@ -51,7 +51,7 @@ Primary evaluation lens (internal to the evaluator):
 - Is there a clearly defined knowledge or technical gap?
 - Is there genuine uncertainty where outcomes are not known in advance?
 - Is external academic or specialist expertise necessary to resolve this uncertainty?
-- Is the scope appropriate to a €5k–€10k Innovation Voucher?
+- Is the scope appropriate to a 5k–10k Innovation Voucher?
 - Will the outputs inform future technical or commercial decisions regardless of outcome?
 
 Instructions (strict):
