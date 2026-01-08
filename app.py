@@ -42,38 +42,34 @@ SCHEME = {
 # ----------------------------
 # Functions
 # ----------------------------
-def generate_draft(question, inputs):
+def generate_application_answers(inputs):
     prompt = f"""
-You are assisting with drafting a government grant application.
+You are drafting responses for an Enterprise Ireland Innovation Voucher application.
 
-Rules:
-- Max {question['max_words']} words
-- No marketing language
-- No assumptions or fabricated data
-- If information is missing, state that clearly
+Write concise, factual answers suitable for a government evaluator.
+No marketing language. No invented facts.
 
-Question:
-{question['text']}
+Return STRICT JSON with the following keys:
+- innovative_product
+- primary_issues
+- skills_expertise
+- expected_deliverables
+- company_benefit
 
-Evaluation criteria:
-{", ".join(question['criteria'])}
-
-Company information:
+Business context:
 {json.dumps(inputs, indent=2)}
-
-Write a clear, factual response.
 """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a careful, compliance-focused assistant."},
+            {"role": "system", "content": "You are an Enterprise Ireland funding assessor."},
             {"role": "user", "content": prompt}
         ],
         temperature=0.2
     )
 
-    return response.choices[0].message.content.strip()
+    return json.loads(response.choices[0].message.content)
 
 
 def compliance_check(question, draft):
@@ -129,29 +125,27 @@ timeline = st.text_input("Estimated timeline (e.g. 3 months)")
 # Generate Draft
 # ----------------------------
 if st.button("Generate Draft"):
-    if not company_name or not problem:
-        st.warning("Please complete at least the company name and problem description.")
+    if not company_name or not problem or not innovation:
+        st.warning("Please complete the required fields.")
     else:
-        inputs = {
-            "company_name": company_name,
-            "sector": sector,
-            "team_size": team_size,
-            "problem": problem,
-            "solution": solution,
-            "timeline": timeline
-        }
+        with st.spinner("Generating draft and preparing application PDF..."):
+            inputs = {
+                "company_name": company_name,
+                "sector": sector,
+                "team_size": team_size,
+                "problem": problem,
+                "innovation": innovation,
+                "timeline": timeline
+            }
 
-        st.subheader("Drafted Application Response")
+            answers = generate_application_answers(inputs)
 
-        for q in SCHEME["questions"]:
-            draft = generate_draft(q, inputs)
-            critique = compliance_check(q, draft)
+            # Fill the official PDF
+            fill_application_pdf(
+                template_path="pdf/Innovation_Voucher_ApplicationForm.pdf",
+                output_path="Completed_Innovation_Voucher_Application.pdf",
+                answers=answers,
+                field_map=PDF_FIELD_MAP
+            )
 
-            st.markdown("### Draft")
-            st.markdown(draft)
-
-            st.markdown("### Compliance Review")
-            st.warning(critique)
-
-            word_count = len(draft.split())
-            st.caption(f"Word count: {word_count} / {q['max_words']}")
+        st.success("Draft generated and application PDF prepared.")
