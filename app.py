@@ -178,7 +178,7 @@ timeline = st.text_input("Estimated project duration (e.g. 3 months)")
 # Generate Draft
 # ----------------------------
 if st.button("Generate Draft"):
-    if not company_name or not problem or not innovation:
+    if not company_name or not problem or not solution:
         st.warning("Please complete the required fields.")
     else:
         with st.spinner("Generating draft and preparing application PDF..."):
