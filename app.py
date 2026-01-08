@@ -3,6 +3,9 @@ import streamlit as st
 from openai import OpenAI
 from pdf_utils import fill_application_pdf
 
+# ----------------------------
+# PDF Field Map (page numbers are 0-indexed)
+# ----------------------------
 PDF_FIELD_MAP = {
     "innovative_product": {"page": 6, "x": 40, "y": 460},
     "primary_issues": {"page": 6, "x": 40, "y": 400},
@@ -11,6 +14,8 @@ PDF_FIELD_MAP = {
     "company_benefit": {"page": 6, "x": 40, "y": 200},
 }
 
+PDF_TEMPLATE_PATH = "pdf/Innovation_Voucher_ApplicationForm.pdf"
+OUTPUT_PDF_PATH = "Completed_Innovation_Voucher_Application.pdf"
 
 # ----------------------------
 # Setup
@@ -23,32 +28,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-st.title("AI-Assisted Grant Application Drafting")
+st.title("AI-Assisted Innovation Voucher Application")
 st.caption("Drafting support only. Human review required. No guarantees of funding.")
-
 st.info("Fill in the details below, then click **Generate Draft**.")
 
 # ----------------------------
-# Scheme (v1: hardcoded)
-# ----------------------------
-SCHEME = {
-    "name": "Enterprise Ireland Innovation Voucher",
-    "questions": [
-        {
-            "id": "Q1",
-            "text": "Describe the innovation challenge your company wishes to address.",
-            "max_words": 300,
-            "criteria": [
-                "Clear problem statement",
-                "Innovation or technical uncertainty",
-                "Relevance to company strategy"
-            ]
-        }
-    ]
-}
-
-# ----------------------------
-# Functions
+# AI Drafting Function
 # ----------------------------
 def generate_application_answers(inputs):
     prompt = f"""
@@ -56,40 +41,19 @@ You are an Enterprise Ireland Client Advisor drafting responses for an Innovatio
 
 Your task is to translate the company’s business context into clear, factual, conservative answers that align with Innovation Voucher evaluation priorities.
 
-You are writing for an evaluator who is non-technical but highly experienced, commercially focused, and reviewing many applications. They are assessing learning value, technical uncertainty, and appropriate use of public funding.
-
-What the evaluator is implicitly looking for (do not reference these explicitly in the output):
-- A clear and specific knowledge or technical gap the company cannot reasonably resolve internally
-- Genuine technical uncertainty where outcomes are unknown and require investigation or validation
-- A project scope appropriate to a €5k–€10k Innovation Voucher
-- A justified need for external academic or specialist research expertise (not routine consultancy)
-- Evidence the company can understand and apply the findings (absorptive capacity)
-- Non-commercial, learning-focused outputs (feasibility, validation, risk reduction)
-- Reduction of downstream technical, financial, or development risk
-
-Core objectives:
-- Define the innovation relative to the company’s current capabilities, not the wider market
-- Identify specific, bounded technical or knowledge gaps
-- Explain why these gaps require external expertise
-- Show how outcomes will inform future decisions regardless of success or failure
-
-Rules (strict):
-- No marketing or promotional language
+Rules:
+- No marketing language
 - No invented facts or assumptions
 - Be conservative, precise, and specific
-- Explicitly reference unknowns, risks, and technical uncertainty
-- Clearly distinguish what is currently known versus what must be validated externally
-- Avoid jargon; explain technical concepts plainly
+- Explicitly reference technical uncertainty and external expertise
+- Frame outputs as investigation and validation, not execution
 
-Output requirements:
 Return STRICT JSON ONLY with the following keys:
 - innovative_product
 - primary_issues
 - skills_expertise
 - expected_deliverables
 - company_benefit
-
-Each value should be concise (3–6 sentences), factual, and framed as an investigation or validation rather than an execution or commercialisation.
 
 Business context:
 {json.dumps(inputs, indent=2)}
@@ -106,72 +70,13 @@ Business context:
 
     return json.loads(response.choices[0].message.content)
 
-
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an Enterprise Ireland funding assessor."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2
-    )
-
-    return json.loads(response.choices[0].message.content)
-
-
-def compliance_check(question, draft):
-    prompt = f"""
-You are reviewing a draft answer to a government grant application.
-
-Rules:
-- Be strict and conservative
-- Do not rewrite the answer
-- Identify risks and gaps only
-
-Question:
-{question['text']}
-
-Evaluation criteria:
-{", ".join(question['criteria'])}
-
-Draft answer:
-{draft}
-
-Output a bullet list under these headings:
-- Criteria not fully addressed
-- Missing evidence or numbers
-- Vague or risky statements
-- Information requiring human confirmation
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a compliance-focused reviewer."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.1
-    )
-
-    return response.choices[0].message.content.strip()
-
 # ----------------------------
-# Inputs (MAIN PAGE – no sidebar)
+# Inputs (defined BEFORE use)
 # ----------------------------
 st.header("Company Profile")
-inputs = {
-    "company_name": company_name,
-    "sector": sector,
-    "team_size": team_size,
-    "problem": problem,
-    "proposed_solution": solution,
-    "technical_uncertainty": technical_uncertainty,
-    "external_expertise_required": external_expertise,
-    "expected_outcomes": expected_outcomes,
-    "timeline": timeline
-}
-
+company_name = st.text_input("Company name")
+sector = st.text_input("Sector")
+team_size = st.number_input("Team size", min_value=1, step=1)
 
 st.header("Project Overview")
 
@@ -202,9 +107,8 @@ expected_outcomes = st.text_area(
 
 timeline = st.text_input("Estimated project duration (e.g. 3 months)")
 
-
 # ----------------------------
-# Generate Draft
+# Generate Draft + PDF
 # ----------------------------
 if st.button("Generate Draft"):
     if not company_name or not problem or not solution:
@@ -216,18 +120,28 @@ if st.button("Generate Draft"):
                 "sector": sector,
                 "team_size": team_size,
                 "problem": problem,
-                "innovation": innovation,
+                "proposed_solution": solution,
+                "technical_uncertainty": technical_uncertainty,
+                "external_expertise_required": external_expertise,
+                "expected_outcomes": expected_outcomes,
                 "timeline": timeline
             }
 
             answers = generate_application_answers(inputs)
 
-            # Fill the official PDF
             fill_application_pdf(
-                template_path="pdf/Innovation_Voucher_ApplicationForm.pdf",
-                output_path="Completed_Innovation_Voucher_Application.pdf",
+                template_path=PDF_TEMPLATE_PATH,
+                output_path=OUTPUT_PDF_PATH,
                 answers=answers,
                 field_map=PDF_FIELD_MAP
             )
 
         st.success("Draft generated and application PDF prepared.")
+
+        with open(OUTPUT_PDF_PATH, "rb") as f:
+            st.download_button(
+                "Download completed Innovation Voucher application (PDF)",
+                f,
+                file_name="Innovation_Voucher_Application_Completed.pdf",
+                mime="application/pdf"
+            )
