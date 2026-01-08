@@ -97,7 +97,15 @@ Output a bullet list under these headings:
 - Information requiring human confirmation
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4
+  response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": "You are a compliance-focused reviewer."},
+        {"role": "user", "content": prompt}
+    ],
+    temperature=0.1
+)
+return response.choices[0].message.content.strip()
+
 
 
