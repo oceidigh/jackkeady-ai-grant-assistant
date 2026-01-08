@@ -3,6 +3,14 @@ import streamlit as st
 from openai import OpenAI
 from pdf_utils import fill_application_pdf
 
+PDF_FIELD_MAP = {
+    "innovative_product": {"page": 6, "x": 40, "y": 460},
+    "primary_issues": {"page": 6, "x": 40, "y": 400},
+    "skills_expertise": {"page": 6, "x": 40, "y": 340},
+    "expected_deliverables": {"page": 6, "x": 40, "y": 270},
+    "company_benefit": {"page": 6, "x": 40, "y": 200},
+}
+
 
 # ----------------------------
 # Setup
@@ -140,9 +148,18 @@ Output a bullet list under these headings:
 # Inputs (MAIN PAGE – no sidebar)
 # ----------------------------
 st.header("Company Profile")
-company_name = st.text_input("Company name")
-sector = st.text_input("Sector")
-team_size = st.number_input("Team size", min_value=1, step=1)
+inputs = {
+    "company_name": company_name,
+    "sector": sector,
+    "team_size": team_size,
+    "problem": problem,
+    "proposed_solution": solution,
+    "technical_uncertainty": technical_uncertainty,
+    "external_expertise_required": external_expertise,
+    "expected_outcomes": expected_outcomes,
+    "timeline": timeline
+}
+
 
 st.header("Project Overview")
 
