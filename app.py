@@ -43,22 +43,50 @@ SCHEME = {
 # Functions
 # ----------------------------
 def generate_application_answers(inputs):
-    prompt = f"""
-You are drafting responses for an Enterprise Ireland Innovation Voucher application.
+   prompt = f"""
+You are an Enterprise Ireland Client Advisor drafting responses for an Innovation Voucher application.
 
-Write concise, factual answers suitable for a government evaluator.
-No marketing language. No invented facts.
+Your task is to translate the company’s business context into clear, factual, conservative answers that align with Innovation Voucher evaluation priorities.
 
-Return STRICT JSON with the following keys:
+You are writing for an evaluator who is non-technical but highly experienced, commercially focused, and reviewing many applications. They are assessing learning value, technical uncertainty, and appropriate use of public funding.
+
+What the evaluator is implicitly looking for (do not reference these explicitly in the output):
+- A clear and specific knowledge or technical gap the company cannot reasonably resolve internally
+- Genuine technical uncertainty where outcomes are unknown and require investigation or validation
+- A project scope appropriate to a €5k–€10k Innovation Voucher
+- A justified need for external academic or specialist research expertise (not routine consultancy)
+- Evidence the company can understand and apply the findings (absorptive capacity)
+- Non-commercial, learning-focused outputs (feasibility, validation, risk reduction)
+- Reduction of downstream technical, financial, or development risk
+
+Core objectives:
+- Define the innovation relative to the company’s current capabilities, not the wider market
+- Identify specific, bounded technical or knowledge gaps
+- Explain why these gaps require external expertise
+- Show how outcomes will inform future decisions regardless of success or failure
+
+Rules (strict):
+- No marketing or promotional language
+- No invented facts or assumptions
+- Be conservative, precise, and specific
+- Explicitly reference unknowns, risks, and technical uncertainty
+- Clearly distinguish what is currently known versus what must be validated externally
+- Avoid jargon; explain technical concepts plainly
+
+Output requirements:
+Return STRICT JSON ONLY with the following keys:
 - innovative_product
 - primary_issues
 - skills_expertise
 - expected_deliverables
 - company_benefit
 
+Each value should be concise (3–6 sentences), factual, and framed as an investigation or validation rather than an execution or commercialisation.
+
 Business context:
 {json.dumps(inputs, indent=2)}
 """
+
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -117,9 +145,34 @@ sector = st.text_input("Sector")
 team_size = st.number_input("Team size", min_value=1, step=1)
 
 st.header("Project Overview")
-problem = st.text_area("Problem you are solving")
-solution = st.text_area("Proposed solution / innovation")
-timeline = st.text_input("Estimated timeline (e.g. 3 months)")
+
+problem = st.text_area(
+    "What problem are you trying to solve?",
+    help="Describe the core challenge or limitation that exists today."
+)
+
+solution = st.text_area(
+    "What is your proposed innovation?",
+    help="What new product, process, or capability are you aiming to develop?"
+)
+
+technical_uncertainty = st.text_area(
+    "What technical or knowledge gaps exist?",
+    help="What do you not yet know how to do, prove, or validate?"
+)
+
+external_expertise = st.text_area(
+    "What type of external expertise is required?",
+    help="What skills or facilities are needed that your company does not have in-house?"
+)
+
+expected_outcomes = st.text_area(
+    "What would a successful outcome look like?",
+    help="Describe tangible outputs such as reports, prototypes, or validated findings."
+)
+
+timeline = st.text_input("Estimated project duration (e.g. 3 months)")
+
 
 # ----------------------------
 # Generate Draft
