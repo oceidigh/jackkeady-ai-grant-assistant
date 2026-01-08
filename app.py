@@ -50,8 +50,9 @@ SCHEME = {
 # ----------------------------
 # Functions
 # ----------------------------
-def generate_application_answers(inputs):
-   prompt = f"""
+return json.loads(response.choices[0].message.content)
+
+    prompt = f"""
 You are an Enterprise Ireland Client Advisor drafting responses for an Innovation Voucher application.
 
 Your task is to translate the company’s business context into clear, factual, conservative answers that align with Innovation Voucher evaluation priorities.
@@ -94,6 +95,18 @@ Each value should be concise (3–6 sentences), factual, and framed as an invest
 Business context:
 {json.dumps(inputs, indent=2)}
 """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an Enterprise Ireland funding assessor."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.2
+    )
+
+    return json.loads(response.choices[0].message.content)
+
 
 
     response = client.chat.completions.create(
