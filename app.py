@@ -1,4 +1,3 @@
-import os
 import json
 import streamlit as st
 from openai import OpenAI
@@ -16,6 +15,8 @@ st.set_page_config(
 
 st.title("AI-Assisted Grant Application Drafting")
 st.caption("Drafting support only. Human review required. No guarantees of funding.")
+
+st.info("Fill in the details below, then click **Generate Draft**.")
 
 # ----------------------------
 # Scheme (v1: hardcoded)
@@ -108,3 +109,47 @@ Output a bullet list under these headings:
     )
 
     return response.choices[0].message.content.strip()
+
+# ----------------------------
+# Inputs (MAIN PAGE – no sidebar)
+# ----------------------------
+st.header("Company Profile")
+company_name = st.text_input("Company name")
+sector = st.text_input("Sector")
+team_size = st.number_input("Team size", min_value=1, step=1)
+
+st.header("Project Overview")
+problem = st.text_area("Problem you are solving")
+solution = st.text_area("Proposed solution / innovation")
+timeline = st.text_input("Estimated timeline (e.g. 3 months)")
+
+# ----------------------------
+# Generate Draft
+# ----------------------------
+if st.button("Generate Draft"):
+    if not company_name or not problem:
+        st.warning("Please complete at least the company name and problem description.")
+    else:
+        inputs = {
+            "company_name": company_name,
+            "sector": sector,
+            "team_size": team_size,
+            "problem": problem,
+            "solution": solution,
+            "timeline": timeline
+        }
+
+        st.subheader("Drafted Application Response")
+
+        for q in SCHEME["questions"]:
+            draft = generate_draft(q, inputs)
+            critique = compliance_check(q, draft)
+
+            st.markdown("### Draft")
+            st.markdown(draft)
+
+            st.markdown("### Compliance Review")
+            st.warning(critique)
+
+            word_count = len(draft.split())
+            st.caption(f"Word count: {word_count} / {q['max_words']}")
