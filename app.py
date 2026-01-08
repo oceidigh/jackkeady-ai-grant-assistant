@@ -37,46 +37,44 @@ st.info("Fill in the details below, then click **Generate Draft**.")
 # ----------------------------
 def generate_application_answers(inputs):
     prompt = (
-        "You are drafting responses for an Enterprise Ireland Innovation Voucher application.\n\n"
-        "Write in the style of a strong, fundable Innovation Voucher application that aligns with "
-        "Enterprise Ireland evaluation norms.\n\n"
-        "Audience:\n"
-        "- A non-technical but highly experienced Enterprise Ireland evaluator\n"
-        "- Reviewing many applications\n"
-        "- Focused on learning value, technical uncertainty, and appropriate use of public funding\n\n"
-        "Primary evaluation lens:\n"
-        "- Is there a clearly defined knowledge or technical gap?\n"
-        "- Is there genuine uncertainty where outcomes are not known in advance?\n"
-        "- Is external academic or specialist expertise necessary to resolve this uncertainty?\n"
-        "- Is the scope appropriate to a small Innovation Voucher project?\n"
-        "- Will the outputs inform future technical or commercial decisions regardless of outcome?\n\n"
-        "Instructions (strict):\n"
-        "- Write conservatively and precisely\n"
-        "- Do NOT use marketing or promotional language\n"
-        "- Do NOT imply implementation, development, or commercial rollout\n"
-        "- Frame all work as investigation, assessment, validation, or analysis\n"
-        "- Clearly distinguish between what is known and what is uncertain\n\n"
-        "Output requirements:\n"
-        "Return STRICT JSON ONLY with the following keys:\n"
+        "You must respond with VALID JSON ONLY.\n"
+        "Do not include explanations, comments, markdown, or formatting.\n"
+        "Do not wrap the output in code fences.\n\n"
+        "Return a JSON object with EXACTLY these keys:\n"
         "- innovative_product\n"
         "- primary_issues\n"
         "- skills_expertise\n"
         "- expected_deliverables\n"
         "- company_benefit\n\n"
-        "Business context:\n"
+        "Each value should be a concise paragraph of factual text.\n\n"
+        "Context:\n"
         f"{json.dumps(inputs, indent=2)}"
     )
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are an Enterprise Ireland funding assessor."},
+            {
+                "role": "system",
+                "content": (
+                    "You are an Enterprise Ireland funding assessor. "
+                    "You ONLY output valid JSON. "
+                    "Any text outside JSON is forbidden."
+                )
+            },
             {"role": "user", "content": prompt}
         ],
         temperature=0.2
     )
 
-    return json.loads(response.choices[0].message.content)
+    raw = response.choices[0].message.content.strip()
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        st.error("AI response was not valid JSON. Please click Generate Draft again.")
+        st.code(raw)
+        raise
 
 
 # ----------------------------
