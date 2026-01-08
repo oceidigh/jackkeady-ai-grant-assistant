@@ -1,6 +1,8 @@
 import json
 import streamlit as st
 from openai import OpenAI
+from pdf_utils import fill_application_pdf
+
 
 # ----------------------------
 # Setup
