@@ -1,14 +1,12 @@
 import os
 import json
 import streamlit as st
-from dotenv import load_dotenv
 from openai import OpenAI
 
 # ----------------------------
 # Setup
 # ----------------------------
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI()
 
 st.set_page_config(
     page_title="AI Grant Application Assistant",
@@ -19,7 +17,7 @@ st.title("AI-Assisted Grant Application Drafting")
 st.caption("Drafting support only. Human review required. No guarantees of funding.")
 
 # ----------------------------
-# Fake scheme (v1: hardcoded)
+# Scheme (v1: hardcoded)
 # ----------------------------
 SCHEME = {
     "name": "Enterprise Ireland Innovation Voucher",
@@ -38,21 +36,7 @@ SCHEME = {
 }
 
 # ----------------------------
-# Input Forms
-# ----------------------------
-with st.sidebar:
-    st.header("Company Profile")
-    company_name = st.text_input("Company name")
-    sector = st.text_input("Sector")
-    team_size = st.number_input("Team size", min_value=1, step=1)
-
-    st.header("Project Overview")
-    problem = st.text_area("Problem you are solving")
-    solution = st.text_area("Proposed solution / innovation")
-    timeline = st.text_input("Estimated timeline (e.g. 3 months)")
-
-# ----------------------------
-# Drafting Function
+# Functions
 # ----------------------------
 def generate_draft(question, inputs):
     prompt = f"""
@@ -87,33 +71,33 @@ Write a clear, factual response.
 
     return response.choices[0].message.content.strip()
 
-# ----------------------------
-# Generate Draft
-# ----------------------------
-if st.button("Generate Draft"):
-    if not company_name or not problem:
-        st.warning("Please complete the required fields.")
-    else:
-        inputs = {
-            "company_name": company_name,
-            "sector": sector,
-            "team_size": team_size,
-            "problem": problem,
-            "solution": solution,
-            "timeline": timeline
-        }
 
-        st.subheader("Drafted Application Responses")
+def compliance_check(question, draft):
+    prompt = f"""
+You are reviewing a draft answer to a government grant application.
 
-        for q in SCHEME["questions"]:
-            with st.expander(q["text"], expanded=True):
-                draft = generate_draft(q, inputs)
-                word_count = len(draft.split())
+Rules:
+- Be strict and conservative
+- Do not rewrite the answer
+- Identify risks and gaps only
 
-                st.markdown(draft)
-                st.caption(f"Word count: {word_count} / {q['max_words']}")
+Question:
+{question['text']}
 
-                if word_count > q["max_words"]:
-                    st.error("Exceeds word limit. Requires editing.")
-                else:
-                    st.success("Within word limit.")
+Evaluation criteria:
+{", ".join(question['criteria'])}
+
+Draft answer:
+{draft}
+
+Output a bullet list under these headings:
+- Criteria not fully addressed
+- Missing evidence or numbers
+- Vague or risky statements
+- Information requiring human confirmation
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4
+
+
