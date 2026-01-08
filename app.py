@@ -50,8 +50,7 @@ SCHEME = {
 # ----------------------------
 # Functions
 # ----------------------------
-return json.loads(response.choices[0].message.content)
-
+def generate_application_answers(inputs):
     prompt = f"""
 You are an Enterprise Ireland Client Advisor drafting responses for an Innovation Voucher application.
 
