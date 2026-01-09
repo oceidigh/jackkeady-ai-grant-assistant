@@ -15,6 +15,12 @@ PDF_FIELD_MAP = {
 }
 
 PDF_TEMPLATE_PATH = "pdf/Innovation_Voucher_ApplicationForm.pdf"
+
+import os
+
+st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
+st.write("PDF directory contents:", os.listdir("pdf"))
+
 OUTPUT_PDF_PATH = "Completed_Innovation_Voucher_Application.pdf"
 
 # ----------------------------
