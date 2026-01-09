@@ -20,12 +20,13 @@ OUTPUT_PDF_PATH = os.path.join(
 # PDF Field Map (page numbers are 0-indexed)
 # ============================================================
 PDF_FIELD_MAP = {
-    "innovative_product": {"page": 6, "x": 40, "y": 460},
-    "primary_issues": {"page": 6, "x": 40, "y": 400},
-    "skills_expertise": {"page": 6, "x": 40, "y": 340},
-    "expected_deliverables": {"page": 6, "x": 40, "y": 270},
-    "company_benefit": {"page": 6, "x": 40, "y": 200},
+    "innovative_product":   {"page": 3, "x": 40, "y": 520},
+    "primary_issues":       {"page": 3, "x": 40, "y": 420},
+    "skills_expertise":     {"page": 3, "x": 40, "y": 320},
+    "expected_deliverables":{"page": 3, "x": 40, "y": 220},
+    "company_benefit":      {"page": 3, "x": 40, "y": 120},
 }
+
 
 # ============================================================
 # Setup
