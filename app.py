@@ -25,7 +25,7 @@ PDF_TEMPLATE_PATH = "pdf/Innovation_Voucher_ApplicationForm.pdf"
 import os
 
 st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
-st.write("PDF directory contents:", os.listdir("pdf"))
+st.write("PDF directory contents:")
 
 st.write("Base dir:", BASE_DIR)
 st.write("PDF dir exists:", os.path.exists(PDF_DIR))
