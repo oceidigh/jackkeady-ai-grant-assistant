@@ -3,12 +3,6 @@ import streamlit as st
 from openai import OpenAI
 from pdf_utils import fill_application_pdf
 
-import os
-
-st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
-st.write("PDF directory:", os.listdir("pdf"))
-
-
 # ----------------------------
 # PDF Field Map (page numbers are 0-indexed)
 # ----------------------------
@@ -26,6 +20,11 @@ import os
 
 st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
 st.write("PDF directory contents:", os.listdir("pdf"))
+
+import os
+
+st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
+st.write("PDF directory:", os.listdir("pdf"))
 
 OUTPUT_PDF_PATH = "Completed_Innovation_Voucher_Application.pdf"
 
