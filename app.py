@@ -25,6 +25,9 @@ import os
 
 st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
 st.write("PDF directory:", os.listdir("pdf"))
+for f in os.listdir("pdf"):
+    st.write(repr(f))
+
 
 OUTPUT_PDF_PATH = "Completed_Innovation_Voucher_Application.pdf"
 
