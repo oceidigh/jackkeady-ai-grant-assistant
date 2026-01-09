@@ -1,3 +1,9 @@
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PDF_DIR = os.path.join(BASE_DIR, "pdf")
+PDF_TEMPLATE_PATH = os.path.join(PDF_DIR, "Innovation_Voucher_ApplicationForm.pdf")
+
 import json
 import streamlit as st
 from openai import OpenAI
@@ -21,12 +27,11 @@ import os
 st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
 st.write("PDF directory contents:", os.listdir("pdf"))
 
-import os
-
+st.write("Base dir:", BASE_DIR)
+st.write("PDF dir exists:", os.path.exists(PDF_DIR))
+st.write("PDF dir contents:", os.listdir(PDF_DIR) if os.path.exists(PDF_DIR) else "Missing")
 st.write("PDF exists:", os.path.exists(PDF_TEMPLATE_PATH))
-st.write("PDF directory:", os.listdir("pdf"))
-for f in os.listdir("pdf"):
-    st.write(repr(f))
+
 
 
 OUTPUT_PDF_PATH = "Completed_Innovation_Voucher_Application.pdf"
