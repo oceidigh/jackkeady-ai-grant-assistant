@@ -1,32 +1,60 @@
-import io
-import textwrap
+from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from pypdf import PdfReader, PdfWriter
+from io import BytesIO
+import textwrap
+
+
+def draw_wrapped_text(c, text, x, y, max_width=90, line_height=14):
+    """
+    Draw wrapped text line-by-line onto a PDF canvas.
+    max_width is approx characters per line (PDF has no layout engine).
+    """
+    lines = []
+    for paragraph in text.split("\n"):
+        lines.extend(textwrap.wrap(paragraph, max_width))
+        lines.append("")
+
+    for line in lines:
+        c.drawString(x, y, line)
+        y -= line_height
+
+    return y
+
 
 def fill_application_pdf(template_path, output_path, answers, field_map):
     reader = PdfReader(template_path)
     writer = PdfWriter()
 
-    for page_index, page in enumerate(reader.pages):
-        packet = io.BytesIO()
-        can = canvas.Canvas(packet, pagesize=A4)
-        can.setFont("Helvetica", 9)
+    packet = BytesIO()
+    c = canvas.Canvas(packet, pagesize=A4)
 
-        for field, cfg in field_map.items():
-            if cfg["page"] == page_index and field in answers:
-                wrapped = textwrap.wrap(answers[field], 90)
-                y = cfg["y"]
+    current_page = 0
 
-                for line in wrapped:
-                    can.drawString(cfg["x"], y, line)
-                    y -= 11
+    for key, cfg in field_map.items():
+        target_page = cfg["page"]
 
-        can.save()
-        packet.seek(0)
+        while current_page < target_page:
+            c.showPage()
+            current_page += 1
 
-        overlay = PdfReader(packet).pages[0]
-        page.merge_page(overlay)
+        draw_wrapped_text(
+            c,
+            answers.get(key, ""),
+            x=cfg["x"],
+            y=cfg["y"],
+            max_width=95,
+            line_height=14
+        )
+
+    c.save()
+    packet.seek(0)
+
+    overlay = PdfReader(packet)
+
+    for i, page in enumerate(reader.pages):
+        if i < len(overlay.pages):
+            page.merge_page(overlay.pages[i])
         writer.add_page(page)
 
     with open(output_path, "wb") as f:
