@@ -77,26 +77,55 @@ class ConversationAgent:
 Your goals:
 1. Collect all required Innovation Voucher application data
 2. Ask one question at a time
-3. Translate informal user input into clear, formal grant language
+3. Translate informal user input into clear, formal grant language suitable for Enterprise Ireland evaluation
 4. Never expose form field names or internal structure
 5. Confirm understanding before moving on
-6. If information is unclear, ask a follow-up
+6. Detect weak or vague answers and ask targeted follow-ups
 7. If the user says "skip", mark the field as skipped and continue
 
-Rules:
+FIELD-SPECIFIC REWRITE GUIDANCE:
+When collecting project fields (challenge, description, commercial_impact), transform informal input into evaluator-grade language:
+- PROJECT CHALLENGE: Focus on the specific problem, its impact, and why current solutions are inadequate. Avoid vague terms like "inefficient" - specify what's lacking.
+- PROJECT DESCRIPTION: Describe the innovation in terms of what will be developed, validated, or achieved. Focus on tangible outputs and technical approach, not buzzwords.
+- COMMERCIAL IMPACT: Explain concrete business outcomes (market access, certification, revenue potential, competitive advantage). Avoid generic phrases like "will help the business grow."
+- TECHNICAL UNCERTAINTY: Identify specific knowledge gaps, unproven assumptions, or validation needs. Be explicit about what is unknown.
+- SKILLS REQUIRED: Name actual expertise areas, facilities, or capabilities needed. Be specific about disciplines and resources.
+
+WEAK ANSWER DETECTION:
+Mark confidence as LOW and ask a follow-up if the answer:
+- Is fewer than 10 words for project fields
+- Contains only buzzwords without specifics (e.g., "AI-powered innovation to disrupt the market")
+- Lacks concrete detail (e.g., "improve efficiency" without saying how or by how much)
+- Is vague about outcomes, methods, or impact
+When this happens, ask ONE targeted question to strengthen the answer. Do NOT advance until specificity improves.
+
+CONFIDENCE SCORING RULES:
+- HIGH: Answer contains specific detail, concrete outcomes, clear context, and no ambiguity. You can write grant-quality text from it.
+- MEDIUM: Answer has some detail but lacks full specificity or contains minor ambiguities. Usable but could be stronger.
+- LOW: Answer is vague, generic, very brief, or requires assumptions to interpret. You cannot write quality grant text without follow-up.
+
+REWRITING PRINCIPLES:
+- Keep all factual content from user input
+- Do NOT invent numbers, dates, or details not provided
+- Transform casual language into formal grant language
+- Remove filler words and conversational hedges
+- Structure information clearly with specific outcomes
+- Use professional terminology appropriate to the sector
+
+RESPONSE RULES:
 - Be concise and professional
 - Do not repeat completed questions
 - Do not ask multiple questions at once
 - Do not invent facts
-- If the user rambles, summarise and confirm
-- If confidence is low, flag the answer
+- If the user rambles, extract key points and summarise in grant language
+- If confidence is low, include a follow-up question to improve quality
 
 Response format:
 You MUST respond in valid JSON with these exact keys:
 - acknowledgement: Brief acknowledgement of user input
 - extracted_data: Dict mapping field paths to values (e.g., {"company.legal_name": "Acme Ltd"})
-- summary_for_user: Clean summary of what you understood in grant language
-- confidence: "high" | "medium" | "low"
+- summary_for_user: Clean summary in professional grant language showing what you understood
+- confidence: "high" | "medium" | "low" (based on criteria above)
 - next_question: The next question to ask (or "COMPLETE" if done)
 
 CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no explanations."""
@@ -247,17 +276,34 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
         if result.get("extracted_data") and not result.get("summary_for_user"):
             raise RuntimeError("Agent contract violation: Cannot advance without providing summary_for_user confirmation.")
         
-        # Update schema with extracted data ONLY after summary provided
+        # STAGE 2: Weak answer detection - prevent advancement if confidence is low and this is a project field
+        current_field = self.state.get_current_field()
+        if (result.get("confidence") == "low" and 
+            current_field and 
+            current_field.startswith("project.") and
+            result.get("extracted_data")):
+            
+            # Low confidence on project field with data = weak answer detected
+            # Do NOT advance - the next_question should be a follow-up
+            # Store in history but don't update schema or advance state
+            self.state.conversation_history.append({
+                "user": user_input,
+                "agent": result.get("summary_for_user", "") + "\n\n[Quality check: Answer needs more detail]"
+            })
+            
+            # Return result with follow-up question, no advancement
+            return result
+        
+        # Update schema with extracted data ONLY after summary provided and quality check passed
         if result.get("extracted_data") and result.get("summary_for_user"):
             for field_path, value in result["extracted_data"].items():
                 self.schema.set_field(field_path, value)
             
             # Update state
-            current_field = self.state.get_current_field()
             if current_field and result.get("confidence"):
                 self.state.confidence_flags[current_field] = result["confidence"]
             
-            # Advance only after confirmation provided
+            # Advance only after confirmation provided and quality validated
             self.state.advance()
             
             # Store in history
@@ -297,6 +343,7 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
     def get_review_sections(self) -> Dict[str, List[Dict[str, Any]]]:
         """
         Rule 5: Generate review sections with flagged fields
+        STAGE 2: Enhanced with quality assessment and risk highlighting
         Returns sections with field name, value, confidence, and skipped status
         """
         sections = {
@@ -312,6 +359,23 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
             is_skipped = field_path in self.state.skipped_fields
             is_required = field_path in REQUIRED_FIELDS
             
+            # STAGE 2: Enhanced risk assessment
+            risk_level = "none"
+            risk_reason = None
+            
+            if is_skipped and is_required:
+                risk_level = "critical"
+                risk_reason = "Required field skipped"
+            elif is_skipped:
+                risk_level = "medium"
+                risk_reason = "Optional field skipped"
+            elif confidence == "low":
+                risk_level = "high"
+                risk_reason = "Low confidence - may need strengthening"
+            elif confidence == "medium" and field_path.startswith("project."):
+                risk_level = "low"
+                risk_reason = "Could be more specific for evaluators"
+            
             field_data = {
                 "path": field_path,
                 "label": field_path.split(".")[-1].replace("_", " ").title(),
@@ -319,12 +383,78 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
                 "confidence": confidence,
                 "skipped": is_skipped,
                 "required": is_required,
-                "flagged": confidence == "low" or is_skipped
+                "flagged": confidence == "low" or is_skipped,
+                "risk_level": risk_level,  # STAGE 2: Added risk assessment
+                "risk_reason": risk_reason  # STAGE 2: Added risk explanation
             }
             
             sections[section].append(field_data)
         
         return sections
+    
+    def get_review_summary(self) -> Dict[str, Any]:
+        """
+        STAGE 2: Generate professional review summary for consultant-style review
+        Returns overall assessment with strengths, gaps, and recommendations
+        """
+        sections = self.get_review_sections()
+        
+        # Count quality metrics
+        total_fields = len(FIELD_ORDER)
+        completed_fields = len([f for f in FIELD_ORDER if f not in self.state.skipped_fields])
+        high_confidence = sum(1 for f in self.state.confidence_flags.values() if f == "high")
+        low_confidence = sum(1 for f in self.state.confidence_flags.values() if f == "low")
+        skipped_required = len([f for f in self.state.skipped_fields if f in REQUIRED_FIELDS])
+        skipped_optional = len(self.state.skipped_fields) - skipped_required
+        
+        # Assess project section quality (most critical for grant)
+        project_fields = [f for f in sections["project"] if not f["skipped"]]
+        project_quality = "strong"
+        if any(f["confidence"] == "low" for f in project_fields):
+            project_quality = "needs strengthening"
+        elif any(f["confidence"] == "medium" for f in project_fields):
+            project_quality = "adequate"
+        
+        # Generate strengths
+        strengths = []
+        if high_confidence > total_fields * 0.7:
+            strengths.append("Strong level of detail across most fields")
+        if completed_fields == total_fields:
+            strengths.append("All information provided - no gaps")
+        if project_quality == "strong":
+            strengths.append("Project section is well-defined and specific")
+        
+        # Generate gaps and risks
+        gaps = []
+        if skipped_required > 0:
+            gaps.append(f"⚠️ CRITICAL: {skipped_required} required field(s) skipped")
+        if low_confidence > 0:
+            gaps.append(f"⚠️ {low_confidence} field(s) marked low confidence - may need strengthening")
+        if skipped_optional > 0:
+            gaps.append(f"ℹ️ {skipped_optional} optional field(s) skipped")
+        if project_quality == "needs strengthening":
+            gaps.append("⚠️ Project section needs more specific detail for evaluators")
+        
+        # Generate recommendations
+        recommendations = []
+        if low_confidence > 0:
+            recommendations.append("Review and strengthen low-confidence fields before submission")
+        if skipped_required > 0:
+            recommendations.append("Complete all required fields before submission")
+        if project_quality != "strong":
+            recommendations.append("Add more specific outcomes and metrics to project description")
+        if not recommendations:
+            recommendations.append("Application appears submission-ready")
+        
+        return {
+            "completion_rate": f"{completed_fields}/{total_fields}",
+            "high_confidence_rate": f"{high_confidence}/{completed_fields}",
+            "project_quality": project_quality,
+            "strengths": strengths,
+            "gaps": gaps,
+            "recommendations": recommendations,
+            "overall_readiness": "ready" if not gaps else "needs_review"
+        }
     
     def edit_field_in_review(self, field_path: str, new_value: Any):
         """Rule 5: Allow targeted edits during review"""
