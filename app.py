@@ -112,6 +112,25 @@ st.markdown("""
         background-color: #0066CC;
         height: 6px;
     }
+
+    with st.sidebar:
+    st.markdown("### Settings")
+    api_key = None
+    if "OPENAI_API_KEY" not in os.environ:
+        api_key = st.text_input("OpenAI API Key", type="password")
+    
+    if st.button("💾 Save Draft"):
+        import json
+        with open("draft.json", "w") as f:
+            json.dump({"page": st.session_state.current_page_index, 
+                      "data": st.session_state.form_data}, f)
+    
+    if st.button("📂 Load Draft"):
+        import json
+        with open("draft.json") as f:
+            d = json.load(f)
+            st.session_state.current_page_index = d["page"]
+            st.session_state.form_data = d["data"]
     
     /* Remove padding */
     .block-container {
