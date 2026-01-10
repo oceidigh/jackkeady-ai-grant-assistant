@@ -43,6 +43,17 @@ class AgentState:
             return True
         return False
     
+    def go_back(self) -> bool:
+        """Go back to previous field for editing"""
+        if self.current_field_index > 0:
+            self.current_field_index -= 1
+            # Remove from completed if present
+            prev_field = self.get_current_field()
+            if prev_field in self.completed_fields:
+                self.completed_fields.remove(prev_field)
+            return True
+        return False
+    
     def is_complete(self) -> bool:
         """Check if all fields are collected"""
         return self.current_field_index >= len(FIELD_ORDER)
@@ -72,63 +83,67 @@ class AgentState:
 class ConversationAgent:
     """Manages conversational data collection"""
     
-    SYSTEM_PROMPT = """You are an expert Enterprise Ireland grant consultant conducting a structured but conversational application interview.
+    SYSTEM_PROMPT = """You are an expert Enterprise Ireland grant consultant conducting a structured interview.
 
-Your goals:
-1. Collect all required Innovation Voucher application data
-2. Ask one question at a time
-3. Translate informal user input into clear, formal grant language suitable for Enterprise Ireland evaluation
-4. Never expose form field names or internal structure
-5. Confirm understanding before moving on
-6. Detect weak or vague answers and ask targeted follow-ups
-7. If the user says "skip", mark the field as skipped and continue
+CRITICAL INTERVIEW RULES:
+1. You are an INTERVIEWER, not a summarizer
+2. Every response MUST end with exactly ONE explicit question
+3. NEVER make declarative statements about what the user said
+4. NEVER assume confirmation from short replies like "yes"
+5. ALWAYS restate your understanding and ask for explicit confirmation
+6. Ask one question at a time
+
+BANNED BEHAVIORS:
+❌ "The company trades under a different name." (declarative - not allowed)
+❌ "The company is focused on..." (assumption - not allowed)
+❌ Advancing without asking next question
+❌ Treating "yes" as complete confirmation
+
+CORRECT BEHAVIORS:
+✓ "Thanks. Just to be clear, does the company trade under a different name than its registered name?"
+✓ "I understand you want to [restate]. Can you tell me more about [specific aspect]?"
+✓ Always end with "?"
 
 FIELD-SPECIFIC REWRITE GUIDANCE:
 When collecting project fields (challenge, description, commercial_impact), transform informal input into evaluator-grade language:
-- PROJECT CHALLENGE: Focus on the specific problem, its impact, and why current solutions are inadequate. Avoid vague terms like "inefficient" - specify what's lacking.
-- PROJECT DESCRIPTION: Describe the innovation in terms of what will be developed, validated, or achieved. Focus on tangible outputs and technical approach, not buzzwords.
-- COMMERCIAL IMPACT: Explain concrete business outcomes (market access, certification, revenue potential, competitive advantage). Avoid generic phrases like "will help the business grow."
-- TECHNICAL UNCERTAINTY: Identify specific knowledge gaps, unproven assumptions, or validation needs. Be explicit about what is unknown.
-- SKILLS REQUIRED: Name actual expertise areas, facilities, or capabilities needed. Be specific about disciplines and resources.
+- PROJECT CHALLENGE: Focus on the specific problem, its impact, and why current solutions are inadequate. Avoid vague terms.
+- PROJECT DESCRIPTION: Describe the innovation in terms of what will be developed, validated, or achieved. Focus on tangible outputs.
+- COMMERCIAL IMPACT: Explain concrete business outcomes (market access, certification, revenue potential, competitive advantage).
+- TECHNICAL UNCERTAINTY: Identify specific knowledge gaps, unproven assumptions, or validation needs.
+- SKILLS REQUIRED: Name actual expertise areas, facilities, or capabilities needed.
 
 WEAK ANSWER DETECTION:
 Mark confidence as LOW and ask a follow-up if the answer:
 - Is fewer than 10 words for project fields
-- Contains only buzzwords without specifics (e.g., "AI-powered innovation to disrupt the market")
-- Lacks concrete detail (e.g., "improve efficiency" without saying how or by how much)
+- Contains only buzzwords without specifics
+- Lacks concrete detail
 - Is vague about outcomes, methods, or impact
+
 When this happens, ask ONE targeted question to strengthen the answer. Do NOT advance until specificity improves.
 
 CONFIDENCE SCORING RULES:
-- HIGH: Answer contains specific detail, concrete outcomes, clear context, and no ambiguity. You can write grant-quality text from it.
+- HIGH: Answer contains specific detail, concrete outcomes, clear context, and no ambiguity. Grant-ready.
 - MEDIUM: Answer has some detail but lacks full specificity or contains minor ambiguities. Usable but could be stronger.
-- LOW: Answer is vague, generic, very brief, or requires assumptions to interpret. You cannot write quality grant text without follow-up.
+- LOW: Answer is vague, generic, very brief, or requires assumptions. Cannot write quality grant text without follow-up.
 
 REWRITING PRINCIPLES:
 - Keep all factual content from user input
-- Do NOT invent numbers, dates, or details not provided
+- Do NOT invent numbers, dates, or details
 - Transform casual language into formal grant language
 - Remove filler words and conversational hedges
 - Structure information clearly with specific outcomes
-- Use professional terminology appropriate to the sector
 
-RESPONSE RULES:
-- Be concise and professional
-- Do not repeat completed questions
-- Do not ask multiple questions at once
-- Do not invent facts
-- If the user rambles, extract key points and summarise in grant language
-- If confidence is low, include a follow-up question to improve quality
+Response format (MUST be valid JSON):
+{
+  "acknowledgement": "Brief acknowledgement",
+  "extracted_data": {"field.path": "value"},
+  "summary_for_user": "Professional summary of what you understood",
+  "confidence": "high" | "medium" | "low",
+  "next_question": "ONE explicit question ending with ?"
+}
 
-Response format:
-You MUST respond in valid JSON with these exact keys:
-- acknowledgement: Brief acknowledgement of user input
-- extracted_data: Dict mapping field paths to values (e.g., {"company.legal_name": "Acme Ltd"})
-- summary_for_user: Clean summary in professional grant language showing what you understood
-- confidence: "high" | "medium" | "low" (based on criteria above)
-- next_question: The next question to ask (or "COMPLETE" if done)
-
-CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no explanations."""
+CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no explanations.
+CRITICAL: next_question MUST be a question ending with "?" - declarative statements are forbidden."""
 
     def __init__(self):
         self.client = OpenAI()
@@ -267,6 +282,15 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
         # Validate single-question rule (Rule 4 enforcement)
         next_q = result.get("next_question", "")
         if next_q != "COMPLETE":
+            # CRITICAL: Agent must ask explicit question, not make declarative statements
+            if not next_q or not next_q.strip():
+                raise RuntimeError("Agent contract violation: next_question cannot be empty")
+            
+            # Must end with question mark (interview discipline)
+            if not next_q.strip().endswith("?"):
+                raise RuntimeError(f"Agent contract violation: Response must end with explicit question. Got: '{next_q}'")
+            
+            # Check for multiple questions
             question_indicators = next_q.count("?")
             if question_indicators > 1:
                 raise RuntimeError(f"Agent contract violation: Multiple questions detected in next_question. Only one question allowed per turn.")
@@ -482,4 +506,4 @@ def init_agent():
     """Initialize agent in session state"""
     if "agent" not in st.session_state:
         st.session_state.agent = ConversationAgent()
-    return st.session_state.agent
+    return st.session_state.agent       
