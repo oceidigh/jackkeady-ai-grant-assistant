@@ -3,3 +3,5 @@ openai
 pypdf
 PyPDF2
 reportlab==4.0.8
+pytest
+pytest-mock
