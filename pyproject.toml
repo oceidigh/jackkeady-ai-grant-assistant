@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v --strict-markers"
+
+# Fail on contract violations
+markers = [
+    "contract: marks tests that enforce architectural contracts (fail = architecture broken)",
+    "golden_path: marks tests that validate against baseline transcript"
+]
