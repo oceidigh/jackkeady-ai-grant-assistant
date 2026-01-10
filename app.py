@@ -3,6 +3,7 @@ import streamlit as st
 from pdf_utils import fill_application_pdf
 import eligibility_checker
 from conversation_agent import init_agent
+from application_schema import FIELD_ORDER  # Import for field count
 
 # ============================================================
 # Paths
@@ -362,26 +363,32 @@ else:
         with st.chat_message("user"):
             st.write(user_input)
         
-        # Process input
-        with st.spinner("Processing..."):
-            result = agent.process_input(user_input)
-        
-        # Show agent response
-        with st.chat_message("assistant"):
-            if result.get("summary_for_user"):
-                st.write(result["summary_for_user"])
+        # Process input with error handling
+        try:
+            with st.spinner("Processing..."):
+                result = agent.process_input(user_input)
             
-            # Show confidence flag if low
-            if result.get("confidence") == "low":
-                st.warning("⚠️ I'm not completely sure I understood that correctly.")
+            # Show agent response
+            with st.chat_message("assistant"):
+                if result and result.get("summary_for_user"):
+                    st.write(result["summary_for_user"])
+                
+                # Show confidence flag if low
+                if result and result.get("confidence") == "low":
+                    st.warning("⚠️ I'm not completely sure I understood that correctly.")
+                
+                # Show next question if not complete
+                if result and result.get("next_question") and result["next_question"] != "COMPLETE":
+                    st.write("")
+                    st.write(result["next_question"])
             
-            # Show next question if not complete
-            if result.get("next_question") and result["next_question"] != "COMPLETE":
-                st.write("")
-                st.write(result["next_question"])
-        
-        # Rerun to update UI
-        st.rerun()
+            # Rerun to update UI
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"An error occurred processing your response. Please try again.")
+            st.caption(f"Error details: {str(e)}")
+            # Don't rerun on error - let user see the error and try again
     
     # Show section info
     section = agent.state.get_section()
@@ -393,5 +400,5 @@ else:
     st.sidebar.info(f"**Current Section:** {section_names.get(section, 'Unknown')}")
     
     # Show field completion
-    st.sidebar.caption(f"**Fields completed:** {len(agent.state.completed_fields)}/{len(eligibility_checker.ELIGIBILITY_QUESTIONS)}")
+    st.sidebar.caption(f"**Fields completed:** {len(agent.state.completed_fields)}/{len(FIELD_ORDER)}")
     st.sidebar.caption(f"**Fields skipped:** {len(agent.state.skipped_fields)}")
