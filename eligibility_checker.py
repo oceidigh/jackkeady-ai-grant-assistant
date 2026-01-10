@@ -1,200 +1,191 @@
-import os
-import json
+"""
+Eligibility checker for Enterprise Ireland Innovation Voucher
+Based on official criteria from enterprise-ireland.com
+"""
+
 import streamlit as st
-from openai import OpenAI
-from pdf_utils import fill_application_pdf
-from eligibility_checker import check_eligibility, show_eligibility_summary
 
 # ============================================================
-# Paths (robust on Streamlit Cloud)
+# Eligibility Criteria (from official sources)
 # ============================================================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PDF_DIR = os.path.join(BASE_DIR, "pdf")
-PDF_TEMPLATE_PATH = os.path.join(
-    PDF_DIR, "Innovation_Voucher_ApplicationForm.pdf"
-)
-OUTPUT_PDF_PATH = os.path.join(
-    BASE_DIR, "Completed_Innovation_Voucher_Application.pdf"
-)
 
-# ============================================================
-# PDF Field Map (page numbers are 0-indexed)
-# ============================================================
-PDF_FIELD_MAP = {
-    "innovative_product":   {"page": 3, "x": 40, "y": 520},
-    "primary_issues":       {"page": 3, "x": 40, "y": 420},
-    "skills_expertise":     {"page": 3, "x": 40, "y": 320},
-    "expected_deliverables":{"page": 3, "x": 40, "y": 220},
-    "company_benefit":      {"page": 3, "x": 40, "y": 120},
-}
+ELIGIBILITY_QUESTIONS = [
+    {
+        "key": "company_type",
+        "question": "Is your company a limited company registered in Ireland?",
+        "help_text": "Innovation Vouchers are only available to limited companies registered in Ireland.",
+        "type": "yes_no",
+        "qualifying_answer": True,
+        "rejection_message": "Unfortunately, only limited companies registered in Ireland are eligible for Innovation Vouchers."
+    },
+    {
+        "key": "company_size",
+        "question": "Does your company have fewer than 250 employees?",
+        "help_text": "This is the SME definition used by Enterprise Ireland.",
+        "type": "yes_no",
+        "qualifying_answer": True,
+        "rejection_message": "Unfortunately, only SMEs with fewer than 250 employees are eligible."
+    },
+    {
+        "key": "annual_turnover",
+        "question": "Is your annual turnover less than €50 million?",
+        "help_text": "This is part of the SME definition.",
+        "type": "yes_no",
+        "qualifying_answer": True,
+        "rejection_message": "Unfortunately, companies with annual turnover of €50 million or more are not eligible."
+    },
+    {
+        "key": "excluded_type",
+        "question": "Is your company any of the following: charitable organization, commercial semi-state, not-for-profit, trade association, holding company, chamber of commerce, sports body, or agricultural sector?",
+        "help_text": "These organization types are excluded from the Innovation Voucher scheme.",
+        "type": "yes_no",
+        "qualifying_answer": False,
+        "rejection_message": "Unfortunately, the following are not eligible: charitable organizations, commercial semi-state companies, not-for-profit organizations, trade associations, holding companies, chambers of commerce, sports bodies, and agricultural sector businesses."
+    },
+    {
+        "key": "voucher_count",
+        "question": "How many Innovation Vouchers have you already used?",
+        "help_text": "Companies can use a maximum of 4 vouchers total (3 standard + 1 co-funded).",
+        "type": "number",
+        "min_value": 0,
+        "max_value": 10,
+        "qualifying_answer": lambda x: x < 4,
+        "rejection_message": "Unfortunately, companies can only use a maximum of 4 Innovation Vouchers total."
+    },
+    {
+        "key": "active_voucher",
+        "question": "Do you currently have an active (unredeemed) Innovation Voucher?",
+        "help_text": "You can only have one active voucher at a time.",
+        "type": "yes_no",
+        "qualifying_answer": False,
+        "rejection_message": "Unfortunately, you can only have one active voucher at a time. Please complete your current voucher before applying for another."
+    },
+    {
+        "key": "prior_ei_funding",
+        "question": "Have you received more than €300,000 in Enterprise Ireland funding in the past 5 years?",
+        "help_text": "Companies with >€300k in prior EI funding are not eligible for fully funded standard €5k vouchers, but can apply for co-funded vouchers.",
+        "type": "yes_no",
+        "qualifying_answer": False,
+        "warning_message": "You're not eligible for a standard €5k voucher, but you can apply for a co-funded voucher (50-50 cost share).",
+        "continue_anyway": True
+    }
+]
 
 
-# ============================================================
-# Setup
-# ============================================================
-client = OpenAI()
+def check_eligibility():
+    """
+    Run the eligibility check one question at a time.
+    Returns True if eligible, False if not eligible.
+    """
+    
+    # Initialize session state for tracking
+    if "eligibility_step" not in st.session_state:
+        st.session_state.eligibility_step = 0
+        st.session_state.eligibility_answers = {}
+        st.session_state.eligible = None
+    
+    # If we've already completed eligibility, return the result
+    if st.session_state.eligible is not None:
+        return st.session_state.eligible
+    
+    # Get current question
+    current_step = st.session_state.eligibility_step
+    
+    # Check if we've completed all questions
+    if current_step >= len(ELIGIBILITY_QUESTIONS):
+        st.session_state.eligible = True
+        return True
+    
+    question = ELIGIBILITY_QUESTIONS[current_step]
+    
+    # Display progress
+    st.progress((current_step + 1) / len(ELIGIBILITY_QUESTIONS))
+    st.caption(f"Question {current_step + 1} of {len(ELIGIBILITY_QUESTIONS)}")
+    
+    # Display the question
+    st.subheader(question["question"])
+    if question.get("help_text"):
+        st.info(question["help_text"])
+    
+    # Get user input based on question type
+    answer = None
+    
+    if question["type"] == "yes_no":
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Yes", use_container_width=True, key=f"yes_{question['key']}"):
+                answer = True
+        with col2:
+            if st.button("❌ No", use_container_width=True, key=f"no_{question['key']}"):
+                answer = False
+    
+    elif question["type"] == "number":
+        answer = st.number_input(
+            "Enter number:",
+            min_value=question.get("min_value", 0),
+            max_value=question.get("max_value", 100),
+            step=1,
+            key=f"num_{question['key']}"
+        )
+        if st.button("Continue", key=f"continue_{question['key']}"):
+            # Button clicked, we'll process the answer
+            pass
+        else:
+            answer = None  # Don't process until button clicked
+    
+    # Process the answer
+    if answer is not None:
+        st.session_state.eligibility_answers[question["key"]] = answer
+        
+        # Check if answer is qualifying
+        qualifying = question["qualifying_answer"]
+        if callable(qualifying):
+            is_qualified = qualifying(answer)
+        else:
+            is_qualified = (answer == qualifying)
+        
+        if not is_qualified:
+            # Check if there's a warning message (continue anyway)
+            if question.get("continue_anyway"):
+                st.warning(question.get("warning_message", "Please note this limitation."))
+                st.session_state.eligibility_step += 1
+                st.rerun()
+            else:
+                # Hard rejection
+                st.error(question.get("rejection_message", "Unfortunately, you are not eligible."))
+                st.session_state.eligible = False
+                return False
+        else:
+            # Move to next question
+            st.session_state.eligibility_step += 1
+            st.rerun()
+    
+    return None  # Still in progress
 
-st.set_page_config(
-    page_title="AI Grant Application Assistant",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
-st.title("AI-Assisted Innovation Voucher Application")
-st.caption("Drafting support only. Human review required. No guarantees of funding.")
+def reset_eligibility():
+    """Reset the eligibility check to start over"""
+    st.session_state.eligibility_step = 0
+    st.session_state.eligibility_answers = {}
+    st.session_state.eligible = None
 
-# ============================================================
-# Safety check (fail fast if PDF missing)
-# ============================================================
-if not os.path.exists(PDF_TEMPLATE_PATH):
-    st.error(
-        "Innovation Voucher PDF template not found.\n\n"
-        "Expected path:\n"
-        f"`{PDF_TEMPLATE_PATH}`"
-    )
-    st.stop()
 
-# ============================================================
-# ELIGIBILITY CHECK - Must pass before showing application
-# ============================================================
-st.header("Step 1: Eligibility Check")
-st.info("Let's verify you're eligible for an Innovation Voucher. This will only take a minute.")
-
-eligibility_result = check_eligibility()
-
-# If not eligible, stop here
-if eligibility_result is False:
-    st.stop()
-
-# If still checking, stop here and wait for completion
-if eligibility_result is None:
-    st.stop()
-
-# ============================================================
-# APPLICATION FORM - Only shown if eligible
-# ============================================================
-st.success("Great! You're eligible to apply.")
-show_eligibility_summary()
-
-st.header("Step 2: Application Details")
-st.info("Fill in the details below, then click **Generate Draft**.")
-
-# ============================================================
-# AI Drafting Function
-# ============================================================
-def generate_application_answers(inputs: dict) -> dict:
-    prompt = (
-        "You must respond with VALID JSON ONLY.\n"
-        "Do not include explanations, comments, markdown, or formatting.\n"
-        "Do not wrap the output in code fences.\n\n"
-        "Return a JSON object with EXACTLY these keys:\n"
-        "- innovative_product\n"
-        "- primary_issues\n"
-        "- skills_expertise\n"
-        "- expected_deliverables\n"
-        "- company_benefit\n\n"
-        "Each value should be a concise, factual paragraph.\n\n"
-        "Context:\n"
-        f"{json.dumps(inputs, indent=2)}"
-    )
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an Enterprise Ireland funding assessor. "
-                    "You ONLY output valid JSON. "
-                    "Any text outside JSON is forbidden."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-    )
-
-    raw = response.choices[0].message.content.strip()
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        st.error("AI response was not valid JSON. Please try again.")
-        st.code(raw)
-        raise
-
-# ============================================================
-# Inputs
-# ============================================================
-st.subheader("Company Profile")
-company_name = st.text_input("Company name")
-sector = st.text_input("Sector")
-team_size = st.number_input("Team size", min_value=1, step=1)
-
-st.subheader("Project Overview")
-
-problem = st.text_area(
-    "What problem are you trying to solve?",
-    help="Describe the core challenge or limitation that exists today.",
-)
-
-solution = st.text_area(
-    "What is your proposed innovation?",
-    help="What new product, process, or capability are you aiming to develop?",
-)
-
-technical_uncertainty = st.text_area(
-    "What technical or knowledge gaps exist?",
-    help="What do you not yet know how to do, prove, or validate?",
-)
-
-external_expertise = st.text_area(
-    "What type of external expertise is required?",
-    help="What skills or facilities are needed that your company does not have in-house?",
-)
-
-expected_outcomes = st.text_area(
-    "What would a successful outcome look like?",
-    help="Describe tangible outputs such as reports, prototypes, or validated findings.",
-)
-
-timeline = st.text_input("Estimated project duration (e.g. 3 months)")
-
-# ============================================================
-# Generate Draft + PDF
-# ============================================================
-if st.button("Generate Draft"):
-    if not company_name or not problem or not solution:
-        st.warning("Please complete the required fields.")
-    else:
-        with st.spinner("Generating draft and preparing application PDF..."):
-            inputs = {
-                "company_name": company_name,
-                "sector": sector,
-                "team_size": team_size,
-                "problem": problem,
-                "proposed_solution": solution,
-                "technical_uncertainty": technical_uncertainty,
-                "external_expertise_required": external_expertise,
-                "expected_outcomes": expected_outcomes,
-                "timeline": timeline,
-            }
-
-            answers = generate_application_answers(inputs)
-
-            fill_application_pdf(
-                template_path=PDF_TEMPLATE_PATH,
-                output_path=OUTPUT_PDF_PATH,
-                answers=answers,
-                field_map=PDF_FIELD_MAP,
-            )
-
-        st.success("Draft generated and application PDF prepared.")
-
-        with open(OUTPUT_PDF_PATH, "rb") as f:
-            st.download_button(
-                label="Download completed Innovation Voucher application (PDF)",
-                data=f,
-                file_name="Innovation_Voucher_Application_Completed.pdf",
-                mime="application/pdf",
-            )
+def show_eligibility_summary():
+    """Show a summary of eligibility answers"""
+    if not st.session_state.get("eligibility_answers"):
+        return
+    
+    st.subheader("✅ Eligibility Confirmed")
+    
+    with st.expander("View your answers"):
+        for question in ELIGIBILITY_QUESTIONS:
+            key = question["key"]
+            if key in st.session_state.eligibility_answers:
+                answer = st.session_state.eligibility_answers[key]
+                st.write(f"**{question['question']}**")
+                st.write(f"Your answer: {answer}")
+                st.divider()
+    
+    if st.button("Start Over", key="reset_eligibility"):
+        reset_eligibility()
+        st.rerun()
