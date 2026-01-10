@@ -18,6 +18,8 @@ class AgentState:
         self.skipped_fields: List[str] = []
         self.confidence_flags: Dict[str, str] = {}  # field -> "high" | "medium" | "low"
         self.conversation_history: List[Dict[str, str]] = []
+        self.in_review_mode: bool = False  # Rule 5 enforcement
+        self.review_edits: Dict[str, Any] = {}  # Track edits during review
     
     def get_current_field(self) -> Optional[str]:
         """Get the field we're currently collecting"""
@@ -44,6 +46,14 @@ class AgentState:
     def is_complete(self) -> bool:
         """Check if all fields are collected"""
         return self.current_field_index >= len(FIELD_ORDER)
+    
+    def enter_review_mode(self):
+        """Rule 5: Enter formal review mode"""
+        self.in_review_mode = True
+    
+    def exit_review_mode(self):
+        """Exit review mode"""
+        self.in_review_mode = False
     
     def get_section(self) -> str:
         """Get current section name"""
@@ -174,40 +184,81 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
         # Build context
         context = self._build_context(user_input)
         
-        # Call LLM
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": self.SYSTEM_PROMPT},
-                    {"role": "user", "content": json.dumps(context, indent=2)}
-                ],
-                temperature=0.3,
-            )
-            
-            raw = response.choices[0].message.content.strip()
-            
-            # Remove markdown fences if present
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json"):
-                    raw = raw[4:]
-            
-            result = json.loads(raw)
-            
-            # Update schema with extracted data
-            if result.get("extracted_data"):
-                for field_path, value in result["extracted_data"].items():
-                    self.schema.set_field(field_path, value)
+        # Call LLM with retry logic
+        max_retries = 1
+        raw = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": self.SYSTEM_PROMPT},
+                        {"role": "user", "content": json.dumps(context, indent=2)}
+                    ],
+                    temperature=0.3,
+                )
+                
+                raw = response.choices[0].message.content.strip()
+                
+                # Remove markdown fences if present
+                if raw.startswith("```"):
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                
+                result = json.loads(raw)
+                
+                # Validate required keys (Rule 1 enforcement)
+                required_keys = ["acknowledgement", "extracted_data", "summary_for_user", "confidence", "next_question"]
+                missing_keys = [k for k in required_keys if k not in result]
+                
+                if missing_keys:
+                    if attempt < max_retries:
+                        # Retry with correction prompt
+                        context["instruction"] = f"CORRECTION: Your previous response was missing these required keys: {missing_keys}. Respond with valid JSON containing all required keys."
+                        continue
+                    else:
+                        raise ValueError(f"Agent response missing required keys: {missing_keys}")
+                
+                # Valid response, break retry loop
+                break
+                
+            except json.JSONDecodeError as e:
+                if attempt < max_retries:
+                    # Retry with correction prompt
+                    context["instruction"] = "CORRECTION: Your previous response was not valid JSON. Respond ONLY with valid JSON, no markdown, no code fences."
+                    continue
+                else:
+                    # Hard error after retry
+                    st.error("**SYSTEM ERROR: Agent failed to return valid JSON after retry**")
+                    st.code(raw if raw else "No response")
+                    raise RuntimeError(f"Agent contract violation: Invalid JSON after {max_retries + 1} attempts") from e
+        
+        # Validate single-question rule (Rule 4 enforcement)
+        next_q = result.get("next_question", "")
+        if next_q != "COMPLETE":
+            question_indicators = next_q.count("?")
+            if question_indicators > 1:
+                raise RuntimeError(f"Agent contract violation: Multiple questions detected in next_question. Only one question allowed per turn.")
+        
+        # Rule 4 enforcement: Require confirmation before advancing
+        # Check if we need confirmation (extracted data present but no explicit confirmation yet)
+        if result.get("extracted_data") and not result.get("summary_for_user"):
+            raise RuntimeError("Agent contract violation: Cannot advance without providing summary_for_user confirmation.")
+        
+        # Update schema with extracted data ONLY after summary provided
+        if result.get("extracted_data") and result.get("summary_for_user"):
+            for field_path, value in result["extracted_data"].items():
+                self.schema.set_field(field_path, value)
             
             # Update state
             current_field = self.state.get_current_field()
             if current_field and result.get("confidence"):
                 self.state.confidence_flags[current_field] = result["confidence"]
             
-            # Advance if we got data
-            if result.get("extracted_data"):
-                self.state.advance()
+            # Advance only after confirmation provided
+            self.state.advance()
             
             # Store in history
             self.state.conversation_history.append({
@@ -226,26 +277,7 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
             
             return result
             
-        except json.JSONDecodeError as e:
-            st.error(f"AI response was not valid JSON: {e}")
-            st.code(raw)
-            # Return safe fallback
-            return {
-                "acknowledgement": "I'm having trouble processing that.",
-                "extracted_data": {},
-                "summary_for_user": "Could you rephrase that?",
-                "confidence": "low",
-                "next_question": self._get_field_question(self.state.get_current_field())
-            }
-        except Exception as e:
-            st.error(f"Error processing input: {e}")
-            return {
-                "acknowledgement": "Something went wrong.",
-                "extracted_data": {},
-                "summary_for_user": "Let's try that again.",
-                "confidence": "low",
-                "next_question": self._get_field_question(self.state.get_current_field())
-            }
+        # All errors are hard errors - no soft fallbacks (Rule 7)
     
     def start_conversation(self) -> str:
         """Get the first question"""
@@ -255,6 +287,55 @@ CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no
     def get_progress(self) -> float:
         """Get completion percentage"""
         return (self.state.current_field_index / len(FIELD_ORDER)) * 100
+    
+    def enter_review_mode(self):
+        """Rule 5: Enter formal review mode (mandatory before completion)"""
+        if not self.state.is_complete():
+            raise RuntimeError("Cannot enter review mode: data collection not complete")
+        self.state.enter_review_mode()
+    
+    def get_review_sections(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Rule 5: Generate review sections with flagged fields
+        Returns sections with field name, value, confidence, and skipped status
+        """
+        sections = {
+            "company": [],
+            "contacts": [],
+            "project": []
+        }
+        
+        for field_path in FIELD_ORDER:
+            section = field_path.split(".")[0]
+            value = self.schema.get_field(field_path)
+            confidence = self.state.confidence_flags.get(field_path, "unknown")
+            is_skipped = field_path in self.state.skipped_fields
+            is_required = field_path in REQUIRED_FIELDS
+            
+            field_data = {
+                "path": field_path,
+                "label": field_path.split(".")[-1].replace("_", " ").title(),
+                "value": value,
+                "confidence": confidence,
+                "skipped": is_skipped,
+                "required": is_required,
+                "flagged": confidence == "low" or is_skipped
+            }
+            
+            sections[section].append(field_data)
+        
+        return sections
+    
+    def edit_field_in_review(self, field_path: str, new_value: Any):
+        """Rule 5: Allow targeted edits during review"""
+        if not self.state.in_review_mode:
+            raise RuntimeError("Cannot edit: not in review mode")
+        
+        self.schema.set_field(field_path, new_value)
+        self.state.review_edits[field_path] = new_value
+        
+        # Update confidence to high after manual edit
+        self.state.confidence_flags[field_path] = "high"
     
     def export_for_pdf(self) -> Dict[str, str]:
         """Export collected data in format needed for PDF generation"""
