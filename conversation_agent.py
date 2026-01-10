@@ -16,10 +16,13 @@ class AgentState:
         self.current_field_index: int = 0
         self.completed_fields: List[str] = []
         self.skipped_fields: List[str] = []
-        self.confidence_flags: Dict[str, str] = {}  # field -> "high" | "medium" | "low"
+        self.confidence_flags: Dict[str, str] = {}
         self.conversation_history: List[Dict[str, str]] = []
-        self.in_review_mode: bool = False  # Rule 5 enforcement
-        self.review_edits: Dict[str, Any] = {}  # Track edits during review
+        self.in_review_mode: bool = False
+        self.review_edits: Dict[str, Any] = {}
+        
+        # UX IMPROVEMENT: Confirmation state for AI-transformed answers
+        self.pending_confirmation: Optional[Dict[str, Any]] = None
     
     def get_current_field(self) -> Optional[str]:
         """Get the field we're currently collecting"""
@@ -65,6 +68,25 @@ class AgentState:
     def exit_review_mode(self):
         """Exit review mode"""
         self.in_review_mode = False
+    
+    def set_pending_confirmation(self, data: Dict[str, Any], summary: str, confidence: str):
+        """UX IMPROVEMENT: Store answer pending user confirmation"""
+        self.pending_confirmation = {
+            "data": data,
+            "summary": summary,
+            "confidence": confidence
+        }
+    
+    def confirm_pending(self) -> bool:
+        """UX IMPROVEMENT: User confirms pending answer"""
+        if not self.pending_confirmation:
+            return False
+        self.pending_confirmation = None
+        return True
+    
+    def reject_pending(self):
+        """UX IMPROVEMENT: User rejects pending answer, wants to re-enter"""
+        self.pending_confirmation = None
     
     def get_section(self) -> str:
         """Get current section name"""
@@ -506,4 +528,4 @@ def init_agent():
     """Initialize agent in session state"""
     if "agent" not in st.session_state:
         st.session_state.agent = ConversationAgent()
-    return st.session_state.agent       
+    return st.session_state.agent
