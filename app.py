@@ -89,26 +89,140 @@ st.caption(f"Progress: {progress:.0f}% complete")
 
 # Check if conversation is complete
 if agent.state.is_complete():
-    st.success("🎉 Interview complete!")
     
-    st.subheader("Review Your Application")
+    # Rule 5 enforcement: MUST enter review mode before completion
+    if not agent.state.in_review_mode:
+        agent.enter_review_mode()
     
-    with st.expander("Company Information", expanded=True):
-        st.write(f"**Legal Name:** {agent.schema.company.legal_name or 'Not provided'}")
-        st.write(f"**Trading Name:** {agent.schema.company.trading_name or 'Same as legal name'}")
-        st.write(f"**CRO Number:** {agent.schema.company.cro_number or 'Not provided'}")
-        st.write(f"**Employees:** {agent.schema.company.employees.full_time or 0} FT, {agent.schema.company.employees.part_time or 0} PT")
+    st.success("🎉 Data collection complete!")
+    st.header("📋 Mandatory Review")
+    st.info("Review each section below. Fields flagged ⚠️ had low confidence or were skipped. You can edit any field before generating the PDF.")
     
-    with st.expander("Contact Information", expanded=True):
-        st.write(f"**Name:** {agent.schema.contacts.primary.name or 'Not provided'}")
-        st.write(f"**Email:** {agent.schema.contacts.primary.email or 'Not provided'}")
-        st.write(f"**Phone:** {agent.schema.contacts.primary.phone or 'Not provided'}")
+    # Get review sections (Rule 5)
+    review_sections = agent.get_review_sections()
     
-    with st.expander("Project Details", expanded=True):
-        st.write(f"**Title:** {agent.schema.project.title or 'Not provided'}")
-        st.write(f"**Challenge:** {agent.schema.project.challenge or 'Not provided'}")
-        st.write(f"**Description:** {agent.schema.project.description or 'Not provided'}")
-        st.write(f"**Timeline:** {agent.schema.project.timeline or 'Not provided'}")
+    # Company section
+    with st.expander("🏢 Company Information", expanded=True):
+        for field in review_sections["company"]:
+            flag = "⚠️ " if field["flagged"] else ""
+            conf_badge = f"[{field['confidence']}]" if field['confidence'] != 'unknown' else ""
+            
+            st.write(f"**{flag}{field['label']}** {conf_badge}")
+            
+            if field["skipped"]:
+                st.caption("_Skipped_")
+            elif field["value"]:
+                # Show value with edit capability
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.write(field["value"])
+                with col2:
+                    if st.button("✏️ Edit", key=f"edit_{field['path']}"):
+                        st.session_state[f"editing_{field['path']}"] = True
+                
+                # Edit mode
+                if st.session_state.get(f"editing_{field['path']}", False):
+                    new_value = st.text_input(
+                        f"New value for {field['label']}",
+                        value=str(field["value"]),
+                        key=f"new_{field['path']}"
+                    )
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("💾 Save", key=f"save_{field['path']}"):
+                            agent.edit_field_in_review(field['path'], new_value)
+                            st.session_state[f"editing_{field['path']}"] = False
+                            st.rerun()
+                    with col2:
+                        if st.button("❌ Cancel", key=f"cancel_{field['path']}"):
+                            st.session_state[f"editing_{field['path']}"] = False
+                            st.rerun()
+            else:
+                st.caption("_Not provided_")
+            
+            st.divider()
+    
+    # Contacts section
+    with st.expander("👤 Contact Information", expanded=True):
+        for field in review_sections["contacts"]:
+            flag = "⚠️ " if field["flagged"] else ""
+            conf_badge = f"[{field['confidence']}]" if field['confidence'] != 'unknown' else ""
+            
+            st.write(f"**{flag}{field['label']}** {conf_badge}")
+            
+            if field["skipped"]:
+                st.caption("_Skipped_")
+            elif field["value"]:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.write(field["value"])
+                with col2:
+                    if st.button("✏️ Edit", key=f"edit_{field['path']}"):
+                        st.session_state[f"editing_{field['path']}"] = True
+                
+                if st.session_state.get(f"editing_{field['path']}", False):
+                    new_value = st.text_input(
+                        f"New value for {field['label']}",
+                        value=str(field["value"]),
+                        key=f"new_{field['path']}"
+                    )
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("💾 Save", key=f"save_{field['path']}"):
+                            agent.edit_field_in_review(field['path'], new_value)
+                            st.session_state[f"editing_{field['path']}"] = False
+                            st.rerun()
+                    with col2:
+                        if st.button("❌ Cancel", key=f"cancel_{field['path']}"):
+                            st.session_state[f"editing_{field['path']}"] = False
+                            st.rerun()
+            else:
+                st.caption("_Not provided_")
+            
+            st.divider()
+    
+    # Project section
+    with st.expander("🚀 Project Details", expanded=True):
+        for field in review_sections["project"]:
+            flag = "⚠️ " if field["flagged"] else ""
+            conf_badge = f"[{field['confidence']}]" if field['confidence'] != 'unknown' else ""
+            
+            st.write(f"**{flag}{field['label']}** {conf_badge}")
+            
+            if field["skipped"]:
+                st.caption("_Skipped_")
+            elif field["value"]:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    if isinstance(field["value"], list):
+                        st.write(", ".join(field["value"]))
+                    else:
+                        st.write(field["value"])
+                with col2:
+                    if st.button("✏️ Edit", key=f"edit_{field['path']}"):
+                        st.session_state[f"editing_{field['path']}"] = True
+                
+                if st.session_state.get(f"editing_{field['path']}", False):
+                    current_val = field["value"] if not isinstance(field["value"], list) else ", ".join(field["value"])
+                    new_value = st.text_area(
+                        f"New value for {field['label']}",
+                        value=str(current_val),
+                        key=f"new_{field['path']}"
+                    )
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("💾 Save", key=f"save_{field['path']}"):
+                            agent.edit_field_in_review(field['path'], new_value)
+                            st.session_state[f"editing_{field['path']}"] = False
+                            st.rerun()
+                    with col2:
+                        if st.button("❌ Cancel", key=f"cancel_{field['path']}"):
+                            st.session_state[f"editing_{field['path']}"] = False
+                            st.rerun()
+            else:
+                st.caption("_Not provided_")
+            
+            st.divider()
     
     st.divider()
     
@@ -214,3 +328,5 @@ else:
     # Show field completion
     st.sidebar.caption(f"**Fields completed:** {len(agent.state.completed_fields)}/{len(eligibility_checker.ELIGIBILITY_QUESTIONS)}")
     st.sidebar.caption(f"**Fields skipped:** {len(agent.state.skipped_fields)}")
+   
+       
