@@ -1,4 +1,5 @@
 streamlit
 openai
 pypdf
+PyPDF2
 reportlab==4.0.8
