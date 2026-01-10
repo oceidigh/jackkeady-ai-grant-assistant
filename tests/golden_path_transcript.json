@@ -1,0 +1,556 @@
+{
+  "metadata": {
+    "purpose": "Golden path transcript for regression testing",
+    "created": "2026-01-10",
+    "status": "BASELINE",
+    "description": "Complete successful interaction from eligibility through review to PDF generation. Used to detect architectural drift."
+  },
+  
+  "eligibility_phase": {
+    "description": "User passes all eligibility checks",
+    "questions_and_answers": [
+      {
+        "question": "Is your company a limited company registered in Ireland?",
+        "user_answer": "yes",
+        "result": "pass"
+      },
+      {
+        "question": "Does your company have fewer than 250 employees?",
+        "user_answer": "yes",
+        "result": "pass"
+      },
+      {
+        "question": "Is your annual turnover less than €50 million?",
+        "user_answer": "yes",
+        "result": "pass"
+      },
+      {
+        "question": "Is your company any of the following: charitable organization, commercial semi-state, not-for-profit, trade association, holding company, chamber of commerce, sports body, or agricultural sector?",
+        "user_answer": "no",
+        "result": "pass"
+      },
+      {
+        "question": "How many Innovation Vouchers have you already used?",
+        "user_answer": 0,
+        "result": "pass"
+      },
+      {
+        "question": "Do you currently have an active (unredeemed) Innovation Voucher?",
+        "user_answer": "no",
+        "result": "pass"
+      },
+      {
+        "question": "Have you received more than €300,000 in Enterprise Ireland funding in the past 5 years?",
+        "user_answer": "no",
+        "result": "pass"
+      }
+    ],
+    "outcome": "eligible"
+  },
+  
+  "conversation_phase": {
+    "description": "Agent collects application data conversationally",
+    "exchanges": [
+      {
+        "turn": 1,
+        "field": "company.legal_name",
+        "agent_question": "What's your company's legal name?",
+        "user_input": "Acme Innovation Technologies Limited",
+        "agent_response": {
+          "acknowledgement": "Thank you.",
+          "extracted_data": {
+            "company.legal_name": "Acme Innovation Technologies Limited"
+          },
+          "summary_for_user": "Your company's legal name is Acme Innovation Technologies Limited.",
+          "confidence": "high",
+          "next_question": "Do you trade under a different name, or is it the same as your legal name?"
+        }
+      },
+      {
+        "turn": 2,
+        "field": "company.trading_name",
+        "agent_question": "Do you trade under a different name, or is it the same as your legal name?",
+        "user_input": "We just go by Acme Innovation",
+        "agent_response": {
+          "acknowledgement": "Understood.",
+          "extracted_data": {
+            "company.trading_name": "Acme Innovation"
+          },
+          "summary_for_user": "You trade as Acme Innovation.",
+          "confidence": "high",
+          "next_question": "What's your CRO number?"
+        }
+      },
+      {
+        "turn": 3,
+        "field": "company.cro_number",
+        "agent_question": "What's your CRO number?",
+        "user_input": "CRO 678901",
+        "agent_response": {
+          "acknowledgement": "Got it.",
+          "extracted_data": {
+            "company.cro_number": "678901"
+          },
+          "summary_for_user": "Your CRO number is 678901.",
+          "confidence": "high",
+          "next_question": "When was the company incorporated?"
+        }
+      },
+      {
+        "turn": 4,
+        "field": "company.incorporation_date",
+        "agent_question": "When was the company incorporated?",
+        "user_input": "March 2020",
+        "agent_response": {
+          "acknowledgement": "Thank you.",
+          "extracted_data": {
+            "company.incorporation_date": "March 2020"
+          },
+          "summary_for_user": "The company was incorporated in March 2020.",
+          "confidence": "high",
+          "next_question": "What's the first line of your registered address?"
+        }
+      },
+      {
+        "turn": 5,
+        "field": "company.registered_address.line1",
+        "agent_question": "What's the first line of your registered address?",
+        "user_input": "Unit 5, Innovation Hub",
+        "agent_response": {
+          "acknowledgement": "Noted.",
+          "extracted_data": {
+            "company.registered_address.line1": "Unit 5, Innovation Hub"
+          },
+          "summary_for_user": "First line of address: Unit 5, Innovation Hub.",
+          "confidence": "high",
+          "next_question": "Is there a second line for the address, or can we skip that?"
+        }
+      },
+      {
+        "turn": 6,
+        "field": "company.registered_address.line2",
+        "agent_question": "Is there a second line for the address, or can we skip that?",
+        "user_input": "skip",
+        "agent_response": {
+          "acknowledgement": "Okay, skipping.",
+          "extracted_data": {},
+          "summary_for_user": "Field skipped.",
+          "confidence": "high",
+          "next_question": "What city or town?"
+        }
+      },
+      {
+        "turn": 7,
+        "field": "company.registered_address.city",
+        "agent_question": "What city or town?",
+        "user_input": "Cork",
+        "agent_response": {
+          "acknowledgement": "Got it.",
+          "extracted_data": {
+            "company.registered_address.city": "Cork"
+          },
+          "summary_for_user": "City: Cork.",
+          "confidence": "high",
+          "next_question": "What county?"
+        }
+      },
+      {
+        "turn": 8,
+        "field": "company.registered_address.county",
+        "agent_question": "What county?",
+        "user_input": "County Cork",
+        "agent_response": {
+          "acknowledgement": "Thank you.",
+          "extracted_data": {
+            "company.registered_address.county": "Cork"
+          },
+          "summary_for_user": "County: Cork.",
+          "confidence": "high",
+          "next_question": "What's the Eircode?"
+        }
+      },
+      {
+        "turn": 9,
+        "field": "company.registered_address.eircode",
+        "agent_question": "What's the Eircode?",
+        "user_input": "T12 ABC1",
+        "agent_response": {
+          "acknowledgement": "Noted.",
+          "extracted_data": {
+            "company.registered_address.eircode": "T12 ABC1"
+          },
+          "summary_for_user": "Eircode: T12 ABC1.",
+          "confidence": "high",
+          "next_question": "Do you have a website?"
+        }
+      },
+      {
+        "turn": 10,
+        "field": "company.website",
+        "agent_question": "Do you have a website?",
+        "user_input": "Yes, acmeinnovation.ie",
+        "agent_response": {
+          "acknowledgement": "Thanks.",
+          "extracted_data": {
+            "company.website": "acmeinnovation.ie"
+          },
+          "summary_for_user": "Your website is acmeinnovation.ie.",
+          "confidence": "high",
+          "next_question": "What sector or industry does the company operate in?"
+        }
+      },
+      {
+        "turn": 11,
+        "field": "company.primary_activity",
+        "agent_question": "What sector or industry does the company operate in?",
+        "user_input": "Software development for medical devices",
+        "agent_response": {
+          "acknowledgement": "Understood.",
+          "extracted_data": {
+            "company.primary_activity": "Software development for medical devices"
+          },
+          "summary_for_user": "You operate in software development for medical devices.",
+          "confidence": "high",
+          "next_question": "Can you describe what the company does in a sentence or two?"
+        }
+      },
+      {
+        "turn": 12,
+        "field": "company.description",
+        "agent_question": "Can you describe what the company does in a sentence or two?",
+        "user_input": "We develop AI-powered diagnostic software that helps radiologists detect anomalies in medical imaging faster and more accurately.",
+        "agent_response": {
+          "acknowledgement": "Thank you.",
+          "extracted_data": {
+            "company.description": "Acme Innovation develops AI-powered diagnostic software that assists radiologists in detecting anomalies in medical imaging with improved speed and accuracy."
+          },
+          "summary_for_user": "Acme Innovation develops AI-powered diagnostic software that assists radiologists in detecting anomalies in medical imaging with improved speed and accuracy.",
+          "confidence": "high",
+          "next_question": "How many full-time employees do you have?"
+        }
+      },
+      {
+        "turn": 13,
+        "field": "company.employees.full_time",
+        "agent_question": "How many full-time employees do you have?",
+        "user_input": "12",
+        "agent_response": {
+          "acknowledgement": "Noted.",
+          "extracted_data": {
+            "company.employees.full_time": 12
+          },
+          "summary_for_user": "You have 12 full-time employees.",
+          "confidence": "high",
+          "next_question": "How many part-time employees?"
+        }
+      },
+      {
+        "turn": 14,
+        "field": "company.employees.part_time",
+        "agent_question": "How many part-time employees?",
+        "user_input": "3",
+        "agent_response": {
+          "acknowledgement": "Got it.",
+          "extracted_data": {
+            "company.employees.part_time": 3
+          },
+          "summary_for_user": "You have 3 part-time employees.",
+          "confidence": "high",
+          "next_question": "Who should I put as the main contact for this application?"
+        }
+      },
+      {
+        "turn": 15,
+        "field": "contacts.primary.name",
+        "agent_question": "Who should I put as the main contact for this application?",
+        "user_input": "Dr. Sarah Chen",
+        "agent_response": {
+          "acknowledgement": "Thank you.",
+          "extracted_data": {
+            "contacts.primary.name": "Dr. Sarah Chen"
+          },
+          "summary_for_user": "Main contact: Dr. Sarah Chen.",
+          "confidence": "high",
+          "next_question": "What's their job title?"
+        }
+      },
+      {
+        "turn": 16,
+        "field": "contacts.primary.title",
+        "agent_question": "What's their job title?",
+        "user_input": "CTO and Co-Founder",
+        "agent_response": {
+          "acknowledgement": "Noted.",
+          "extracted_data": {
+            "contacts.primary.title": "CTO and Co-Founder"
+          },
+          "summary_for_user": "Title: CTO and Co-Founder.",
+          "confidence": "high",
+          "next_question": "What's their email address?"
+        }
+      },
+      {
+        "turn": 17,
+        "field": "contacts.primary.email",
+        "agent_question": "What's their email address?",
+        "user_input": "sarah.chen@acmeinnovation.ie",
+        "agent_response": {
+          "acknowledgement": "Got it.",
+          "extracted_data": {
+            "contacts.primary.email": "sarah.chen@acmeinnovation.ie"
+          },
+          "summary_for_user": "Email: sarah.chen@acmeinnovation.ie.",
+          "confidence": "high",
+          "next_question": "And their phone number?"
+        }
+      },
+      {
+        "turn": 18,
+        "field": "contacts.primary.phone",
+        "agent_question": "And their phone number?",
+        "user_input": "+353 21 234 5678",
+        "agent_response": {
+          "acknowledgement": "Thank you.",
+          "extracted_data": {
+            "contacts.primary.phone": "+353 21 234 5678"
+          },
+          "summary_for_user": "Phone: +353 21 234 5678.",
+          "confidence": "high",
+          "next_question": "Let's talk about the project. What would you call it?"
+        }
+      },
+      {
+        "turn": 19,
+        "field": "project.title",
+        "agent_question": "Let's talk about the project. What would you call it?",
+        "user_input": "Real-time CT Scan Analysis Enhancement",
+        "agent_response": {
+          "acknowledgement": "Excellent.",
+          "extracted_data": {
+            "project.title": "Real-time CT Scan Analysis Enhancement"
+          },
+          "summary_for_user": "Project title: Real-time CT Scan Analysis Enhancement.",
+          "confidence": "high",
+          "next_question": "What's the main problem or challenge you're trying to solve?"
+        }
+      },
+      {
+        "turn": 20,
+        "field": "project.challenge",
+        "agent_question": "What's the main problem or challenge you're trying to solve?",
+        "user_input": "Current CT scan analysis is too slow and radiologists are overwhelmed with the volume of scans they need to review daily. Our AI can flag suspicious areas but we need to validate its accuracy against different scan types and patient demographics.",
+        "agent_response": {
+          "acknowledgement": "I understand.",
+          "extracted_data": {
+            "project.challenge": "Current CT scan analysis is time-intensive, and radiologists face overwhelming scan volumes. While the company's AI system can identify suspicious areas, validation of its accuracy across diverse scan types and patient demographics is required."
+          },
+          "summary_for_user": "Challenge: Current CT scan analysis is time-intensive, and radiologists face overwhelming scan volumes. While your AI system can identify suspicious areas, validation of its accuracy across diverse scan types and patient demographics is required.",
+          "confidence": "high",
+          "next_question": "What's the innovation you're proposing? What are you aiming to develop or achieve?"
+        }
+      },
+      {
+        "turn": 21,
+        "field": "project.description",
+        "agent_question": "What's the innovation you're proposing? What are you aiming to develop or achieve?",
+        "user_input": "We want to partner with a research institution to validate our AI model against a diverse dataset of anonymized CT scans and develop enhanced algorithms that can work in real-time across different scanner manufacturers and imaging protocols.",
+        "agent_response": {
+          "acknowledgement": "Clear.",
+          "extracted_data": {
+            "project.description": "The innovation involves partnering with a research institution to validate the AI model against a diverse dataset of anonymized CT scans. The project aims to develop enhanced algorithms capable of real-time analysis across different scanner manufacturers and imaging protocols."
+          },
+          "summary_for_user": "Innovation: Partnering with a research institution to validate the AI model against a diverse dataset of anonymized CT scans, developing enhanced algorithms capable of real-time analysis across different scanner manufacturers and imaging protocols.",
+          "confidence": "high",
+          "next_question": "What are the technical or knowledge gaps? What don't you know how to do yet?"
+        }
+      },
+      {
+        "turn": 22,
+        "field": "project.technical_uncertainty",
+        "agent_question": "What are the technical or knowledge gaps? What don't you know how to do yet?",
+        "user_input": "We don't have access to large-scale diverse medical imaging datasets for validation, and we lack expertise in medical imaging physics to understand how different scanner settings affect our AI's performance.",
+        "agent_response": {
+          "acknowledgement": "Understood.",
+          "extracted_data": {
+            "project.technical_uncertainty": "Technical gaps include lack of access to large-scale diverse medical imaging datasets for validation and insufficient in-house expertise in medical imaging physics to assess how scanner settings variations impact AI performance."
+          },
+          "summary_for_user": "Technical gaps: Lack of access to large-scale diverse medical imaging datasets for validation and insufficient expertise in medical imaging physics to assess how scanner setting variations impact AI performance.",
+          "confidence": "high",
+          "next_question": "What kind of external expertise or facilities do you need that you don't have in-house?"
+        }
+      },
+      {
+        "turn": 23,
+        "field": "project.skills_required",
+        "agent_question": "What kind of external expertise or facilities do you need that you don't have in-house?",
+        "user_input": "We need access to medical imaging researchers with expertise in radiology and imaging physics, plus a secure environment for working with medical data that meets GDPR and ethical approval standards.",
+        "agent_response": {
+          "acknowledgement": "Clear.",
+          "extracted_data": {
+            "project.skills_required": "External expertise required includes medical imaging researchers with specialization in radiology and imaging physics, as well as access to a secure, GDPR-compliant environment with ethical approval for handling medical data."
+          },
+          "summary_for_user": "Required expertise: Medical imaging researchers with specialization in radiology and imaging physics, plus a secure, GDPR-compliant environment with ethical approval for handling medical data.",
+          "confidence": "high",
+          "next_question": "What are the main objectives or goals of this project? Tell me the key things you want to achieve."
+        }
+      },
+      {
+        "turn": 24,
+        "field": "project.objectives",
+        "agent_question": "What are the main objectives or goals of this project? Tell me the key things you want to achieve.",
+        "user_input": "Validate our AI against 10,000+ diverse CT scans, improve detection accuracy to 95%, reduce false positives by 30%, and create a technical report documenting performance across different scanner types.",
+        "agent_response": {
+          "acknowledgement": "Excellent.",
+          "extracted_data": {
+            "project.objectives": [
+              "Validate AI against 10,000+ diverse CT scans",
+              "Improve detection accuracy to 95%",
+              "Reduce false positives by 30%",
+              "Create technical report documenting performance across scanner types"
+            ]
+          },
+          "summary_for_user": "Key objectives: Validate AI against 10,000+ diverse CT scans, improve detection accuracy to 95%, reduce false positives by 30%, and create a technical report documenting performance across scanner types.",
+          "confidence": "high",
+          "next_question": "What will you actually deliver at the end? Think reports, prototypes, validated findings, etc."
+        }
+      },
+      {
+        "turn": 25,
+        "field": "project.deliverables",
+        "agent_question": "What will you actually deliver at the end? Think reports, prototypes, validated findings, etc.",
+        "user_input": "A validation report, an enhanced AI model with documented performance metrics, and recommendations for clinical deployment.",
+        "agent_response": {
+          "acknowledgement": "Perfect.",
+          "extracted_data": {
+            "project.deliverables": [
+              "Validation report with performance analysis",
+              "Enhanced AI model with documented metrics",
+              "Clinical deployment recommendations"
+            ]
+          },
+          "summary_for_user": "Deliverables: Validation report with performance analysis, enhanced AI model with documented metrics, and clinical deployment recommendations.",
+          "confidence": "high",
+          "next_question": "How will this benefit your company commercially? Why does this matter for your business?"
+        }
+      },
+      {
+        "turn": 26,
+        "field": "project.commercial_impact",
+        "agent_question": "How will this benefit your company commercially? Why does this matter for your business?",
+        "user_input": "This validation will allow us to pursue CE marking for medical device certification, open up the European hospital market, and provide the evidence base hospitals need to adopt our technology. It's essential for scaling our business.",
+        "agent_response": {
+          "acknowledgement": "I see.",
+          "extracted_data": {
+            "project.commercial_impact": "The validation will enable pursuit of CE marking for medical device certification, facilitate market entry into European hospitals, and provide the evidence base required for hospital adoption. This is critical for business scaling and commercial growth."
+          },
+          "summary_for_user": "Commercial impact: The validation will enable CE marking for medical device certification, facilitate European hospital market entry, and provide the evidence base for adoption. Critical for business scaling.",
+          "confidence": "high",
+          "next_question": "How long do you think this project will take?"
+        }
+      },
+      {
+        "turn": 27,
+        "field": "project.timeline",
+        "agent_question": "How long do you think this project will take?",
+        "user_input": "6 months",
+        "agent_response": {
+          "acknowledgement": "Got it.",
+          "extracted_data": {
+            "project.timeline": "6 months"
+          },
+          "summary_for_user": "Project timeline: 6 months.",
+          "confidence": "high",
+          "next_question": "COMPLETE"
+        }
+      }
+    ],
+    "outcome": "data_collection_complete"
+  },
+  
+  "review_phase": {
+    "description": "System enters mandatory review mode",
+    "review_mode_entered": true,
+    "flagged_fields": [
+      {
+        "field": "company.registered_address.line2",
+        "reason": "skipped",
+        "confidence": "n/a"
+      }
+    ],
+    "user_edits": [],
+    "outcome": "review_approved"
+  },
+  
+  "final_schema": {
+    "company": {
+      "legal_name": "Acme Innovation Technologies Limited",
+      "trading_name": "Acme Innovation",
+      "cro_number": "678901",
+      "incorporation_date": "March 2020",
+      "registered_address": {
+        "line1": "Unit 5, Innovation Hub",
+        "line2": null,
+        "city": "Cork",
+        "county": "Cork",
+        "eircode": "T12 ABC1",
+        "country": "Ireland"
+      },
+      "website": "acmeinnovation.ie",
+      "primary_activity": "Software development for medical devices",
+      "description": "Acme Innovation develops AI-powered diagnostic software that assists radiologists in detecting anomalies in medical imaging with improved speed and accuracy.",
+      "employees": {
+        "full_time": 12,
+        "part_time": 3
+      }
+    },
+    "contacts": {
+      "primary": {
+        "name": "Dr. Sarah Chen",
+        "title": "CTO and Co-Founder",
+        "email": "sarah.chen@acmeinnovation.ie",
+        "phone": "+353 21 234 5678"
+      }
+    },
+    "project": {
+      "title": "Real-time CT Scan Analysis Enhancement",
+      "challenge": "Current CT scan analysis is time-intensive, and radiologists face overwhelming scan volumes. While the company's AI system can identify suspicious areas, validation of its accuracy across diverse scan types and patient demographics is required.",
+      "description": "The innovation involves partnering with a research institution to validate the AI model against a diverse dataset of anonymized CT scans. The project aims to develop enhanced algorithms capable of real-time analysis across different scanner manufacturers and imaging protocols.",
+      "technical_uncertainty": "Technical gaps include lack of access to large-scale diverse medical imaging datasets for validation and insufficient in-house expertise in medical imaging physics to assess how scanner settings variations impact AI performance.",
+      "skills_required": "External expertise required includes medical imaging researchers with specialization in radiology and imaging physics, as well as access to a secure, GDPR-compliant environment with ethical approval for handling medical data.",
+      "objectives": [
+        "Validate AI against 10,000+ diverse CT scans",
+        "Improve detection accuracy to 95%",
+        "Reduce false positives by 30%",
+        "Create technical report documenting performance across scanner types"
+      ],
+      "deliverables": [
+        "Validation report with performance analysis",
+        "Enhanced AI model with documented metrics",
+        "Clinical deployment recommendations"
+      ],
+      "commercial_impact": "The validation will enable pursuit of CE marking for medical device certification, facilitate market entry into European hospitals, and provide the evidence base required for hospital adoption. This is critical for business scaling and commercial growth.",
+      "timeline": "6 months"
+    }
+  },
+  
+  "pdf_generation": {
+    "description": "Schema converted to PDF format",
+    "pdf_fields": {
+      "innovative_product": "The innovation involves partnering with a research institution to validate the AI model against a diverse dataset of anonymized CT scans. The project aims to develop enhanced algorithms capable of real-time analysis across different scanner manufacturers and imaging protocols.",
+      "primary_issues": "Current CT scan analysis is time-intensive, and radiologists face overwhelming scan volumes. While the company's AI system can identify suspicious areas, validation of its accuracy across diverse scan types and patient demographics is required.",
+      "skills_expertise": "External expertise required includes medical imaging researchers with specialization in radiology and imaging physics, as well as access to a secure, GDPR-compliant environment with ethical approval for handling medical data.",
+      "expected_deliverables": "Validation report with performance analysis, Enhanced AI model with documented metrics, Clinical deployment recommendations",
+      "company_benefit": "The validation will enable pursuit of CE marking for medical device certification, facilitate market entry into European hospitals, and provide the evidence base required for hospital adoption. This is critical for business scaling and commercial growth."
+    },
+    "outcome": "pdf_generated"
+  },
+  
+  "validation": {
+    "all_required_fields_collected": true,
+    "no_contract_violations": true,
+    "review_mode_enforced": true,
+    "single_question_per_turn": true,
+    "confirmation_before_advance": true,
+    "json_contract_maintained": true
+  }
+}
