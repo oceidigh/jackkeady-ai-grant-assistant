@@ -326,3 +326,12 @@ REQUIRED_FIELDS = [
     "project.description",
     "project.skills_required",
 ]
+
+# Backwards compatibility: Extract flat field list from FIELD_PAGES
+FIELD_ORDER = []
+for page in FIELD_PAGES:
+    if page["type"] == "form":
+        for field_config in page["fields"]:
+            FIELD_ORDER.append(field_config["path"])
+    else:  # interview
+        FIELD_ORDER.append(page["field"])
