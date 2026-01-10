@@ -293,6 +293,66 @@ if current_page_index >= len(FIELD_PAGES):
     
     st.markdown("---")
     
+    # EVALUATOR MODE - Expert Assessment
+    st.subheader("Expert Evaluation")
+    
+    if st.button("Get Expert Assessment", type="secondary", use_container_width=True):
+        st.session_state.show_evaluation = True
+    
+    if st.session_state.get("show_evaluation", False):
+        from evaluator_mode import evaluate_application
+        
+        with st.spinner("Evaluating application..."):
+            # Prepare evaluation inputs (READ ONLY)
+            confidence_flags = {}  # Would come from agent state
+            skipped_fields = []     # Would come from agent state
+            
+            # Get schema from form_data
+            from application_schema import ApplicationSchema
+            schema = ApplicationSchema()
+            
+            # Populate schema from form_data
+            for field_path, value in st.session_state.form_data.items():
+                schema.set_field(field_path, value)
+            
+            # Run evaluation
+            evaluation = evaluate_application(schema, confidence_flags, skipped_fields)
+        
+        # Display evaluation results
+        st.markdown("---")
+        
+        # Overall Assessment
+        rating_emoji = {"Low": "🔴", "Medium": "🟡", "High": "🟢"}
+        st.markdown(f"### {rating_emoji.get(evaluation.overall_rating, '')} Overall Assessment: {evaluation.overall_rating}")
+        st.info(evaluation.overall_rationale)
+        
+        # Strengths
+        if evaluation.strengths:
+            with st.expander("✅ Strengths", expanded=True):
+                for strength in evaluation.strengths:
+                    st.write(f"• {strength}")
+        
+        # Weaknesses
+        if evaluation.weaknesses:
+            with st.expander("⚠️ Areas for Improvement", expanded=True):
+                for weakness in evaluation.weaknesses:
+                    st.write(f"• {weakness}")
+        
+        # Red Flags
+        if evaluation.red_flags:
+            with st.expander("🔴 Critical Issues", expanded=True):
+                st.error("These issues must be addressed before submission:")
+                for flag in evaluation.red_flags:
+                    st.write(f"• {flag}")
+        
+        # Improvement Suggestions
+        if evaluation.improvement_suggestions:
+            with st.expander("💡 Concrete Improvement Suggestions", expanded=True):
+                for i, suggestion in enumerate(evaluation.improvement_suggestions, 1):
+                    st.write(f"{i}. {suggestion}")
+        
+        st.markdown("---")
+    
     col1, col2 = st.columns([1, 2])
     
     with col1:
