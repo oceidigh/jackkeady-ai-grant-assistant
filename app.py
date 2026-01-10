@@ -3,7 +3,7 @@ import streamlit as st
 from pdf_utils import fill_application_pdf
 import eligibility_checker
 from conversation_agent import init_agent
-from application_schema_enhanced import FIELD_PAGES, REQUIRED_FIELDS, ApplicationSchema
+from application_schema import FIELD_PAGES, REQUIRED_FIELDS, ApplicationSchema
 import re
 
 # ============================================================
