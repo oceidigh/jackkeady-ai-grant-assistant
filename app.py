@@ -95,8 +95,36 @@ if agent.state.is_complete():
         agent.enter_review_mode()
     
     st.success("🎉 Data collection complete!")
-    st.header("📋 Mandatory Review")
-    st.info("Review each section below. Fields flagged ⚠️ had low confidence or were skipped. You can edit any field before generating the PDF.")
+    st.header("📋 Professional Review")
+    st.info("Review your application like a grant consultant would. Fields marked with ⚠️ need attention.")
+    
+    # STAGE 2: Show professional summary
+    review_summary = agent.get_review_summary()
+    
+    with st.expander("📊 Overall Assessment", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Completion", review_summary["completion_rate"])
+        with col2:
+            st.metric("High Confidence", review_summary["high_confidence_rate"])
+        with col3:
+            quality_emoji = "✅" if review_summary["project_quality"] == "strong" else "⚠️"
+            st.metric("Project Quality", f"{quality_emoji} {review_summary['project_quality']}")
+        
+        if review_summary["strengths"]:
+            st.write("**Strengths:**")
+            for strength in review_summary["strengths"]:
+                st.write(f"✓ {strength}")
+        
+        if review_summary["gaps"]:
+            st.write("**Gaps & Risks:**")
+            for gap in review_summary["gaps"]:
+                st.write(gap)
+        
+        if review_summary["recommendations"]:
+            st.write("**Recommendations:**")
+            for rec in review_summary["recommendations"]:
+                st.write(f"→ {rec}")
     
     # Get review sections (Rule 5)
     review_sections = agent.get_review_sections()
@@ -104,10 +132,23 @@ if agent.state.is_complete():
     # Company section
     with st.expander("🏢 Company Information", expanded=True):
         for field in review_sections["company"]:
-            flag = "⚠️ " if field["flagged"] else ""
+            # STAGE 2: Enhanced risk indicators
+            risk_emoji = {
+                "critical": "🔴",
+                "high": "⚠️",
+                "medium": "⚠️",
+                "low": "ℹ️",
+                "none": ""
+            }.get(field.get("risk_level", "none"), "")
+            
+            flag = f"{risk_emoji} " if field["flagged"] else ""
             conf_badge = f"[{field['confidence']}]" if field['confidence'] != 'unknown' else ""
             
             st.write(f"**{flag}{field['label']}** {conf_badge}")
+            
+            # STAGE 2: Show risk reason if present
+            if field.get("risk_reason"):
+                st.caption(f"_{field['risk_reason']}_")
             
             if field["skipped"]:
                 st.caption("_Skipped_")
@@ -145,10 +186,23 @@ if agent.state.is_complete():
     # Contacts section
     with st.expander("👤 Contact Information", expanded=True):
         for field in review_sections["contacts"]:
-            flag = "⚠️ " if field["flagged"] else ""
+            # STAGE 2: Enhanced risk indicators
+            risk_emoji = {
+                "critical": "🔴",
+                "high": "⚠️",
+                "medium": "⚠️",
+                "low": "ℹ️",
+                "none": ""
+            }.get(field.get("risk_level", "none"), "")
+            
+            flag = f"{risk_emoji} " if field["flagged"] else ""
             conf_badge = f"[{field['confidence']}]" if field['confidence'] != 'unknown' else ""
             
             st.write(f"**{flag}{field['label']}** {conf_badge}")
+            
+            # STAGE 2: Show risk reason if present
+            if field.get("risk_reason"):
+                st.caption(f"_{field['risk_reason']}_")
             
             if field["skipped"]:
                 st.caption("_Skipped_")
@@ -184,10 +238,23 @@ if agent.state.is_complete():
     # Project section
     with st.expander("🚀 Project Details", expanded=True):
         for field in review_sections["project"]:
-            flag = "⚠️ " if field["flagged"] else ""
+            # STAGE 2: Enhanced risk indicators
+            risk_emoji = {
+                "critical": "🔴",
+                "high": "⚠️",
+                "medium": "⚠️",
+                "low": "ℹ️",
+                "none": ""
+            }.get(field.get("risk_level", "none"), "")
+            
+            flag = f"{risk_emoji} " if field["flagged"] else ""
             conf_badge = f"[{field['confidence']}]" if field['confidence'] != 'unknown' else ""
             
             st.write(f"**{flag}{field['label']}** {conf_badge}")
+            
+            # STAGE 2: Show risk reason if present
+            if field.get("risk_reason"):
+                st.caption(f"_{field['risk_reason']}_")
             
             if field["skipped"]:
                 st.caption("_Skipped_")
@@ -328,5 +395,3 @@ else:
     # Show field completion
     st.sidebar.caption(f"**Fields completed:** {len(agent.state.completed_fields)}/{len(eligibility_checker.ELIGIBILITY_QUESTIONS)}")
     st.sidebar.caption(f"**Fields skipped:** {len(agent.state.skipped_fields)}")
-   
-       
