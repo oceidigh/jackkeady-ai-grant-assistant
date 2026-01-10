@@ -168,10 +168,14 @@ Response format (MUST be valid JSON):
 CRITICAL: Your response must be ONLY valid JSON. No markdown, no code fences, no explanations.
 CRITICAL: next_question MUST be a question ending with "?" - declarative statements are forbidden."""
 
-    def __init__(self):
+def __init__(self, api_key: Optional[str] = None):
+    if api_key:
+        self.client = OpenAI(api_key=api_key)
+    else:
         self.client = OpenAI()
-        self.schema = ApplicationSchema()
+self.schema = ApplicationSchema()
         self.state = AgentState()
+
     
     def _get_field_question(self, field_path: str) -> str:
         """Map field to natural question"""
@@ -298,30 +302,28 @@ CRITICAL: next_question MUST be a question ending with "?" - declarative stateme
                     continue
                 else:
                     # Hard error after retry
-                    st.error("**SYSTEM ERROR: Agent failed to return valid JSON after retry**")
-                    st.code(raw if raw else "No response")
-                    raise RuntimeError(f"Agent contract violation: Invalid JSON after {max_retries + 1} attempts") from e
+                    raise AgentContractError(f"Agent contract violation: Invalid JSON after {max_retries + 1} attempts\nResponse: {raw if raw else 'No response'}") from e
         
         # Validate single-question rule (Rule 4 enforcement)
         next_q = result.get("next_question", "")
         if next_q != "COMPLETE":
             # CRITICAL: Agent must ask explicit question, not make declarative statements
             if not next_q or not next_q.strip():
-                raise RuntimeError("Agent contract violation: next_question cannot be empty")
+                raise AgentContractError("Agent contract violation: next_question cannot be empty")
             
             # Must end with question mark (interview discipline)
             if not next_q.strip().endswith("?"):
-                raise RuntimeError(f"Agent contract violation: Response must end with explicit question. Got: '{next_q}'")
+                raise AgentContractError(f"Agent contract violation: Response must end with explicit question. Got: '{next_q}'")
             
             # Check for multiple questions
             question_indicators = next_q.count("?")
             if question_indicators > 1:
-                raise RuntimeError(f"Agent contract violation: Multiple questions detected in next_question. Only one question allowed per turn.")
+                raise AgentContractError(f"Agent contract violation: Multiple questions detected in next_question. Only one question allowed per turn.")
         
         # Rule 4 enforcement: Require confirmation before advancing
         # Check if we need confirmation (extracted data present but no explicit confirmation yet)
         if result.get("extracted_data") and not result.get("summary_for_user"):
-            raise RuntimeError("Agent contract violation: Cannot advance without providing summary_for_user confirmation.")
+            raise AgentContractError("Agent contract violation: Cannot advance without providing summary_for_user confirmation.")
         
         # STAGE 2: Weak answer detection - prevent advancement if confidence is low and this is a project field
         current_field = self.state.get_current_field()
@@ -384,7 +386,7 @@ CRITICAL: next_question MUST be a question ending with "?" - declarative stateme
     def enter_review_mode(self):
         """Rule 5: Enter formal review mode (mandatory before completion)"""
         if not self.state.is_complete():
-            raise RuntimeError("Cannot enter review mode: data collection not complete")
+            raise AgentContractError("Cannot enter review mode: data collection not complete")
         self.state.enter_review_mode()
     
     def get_review_sections(self) -> Dict[str, List[Dict[str, Any]]]:
@@ -506,7 +508,7 @@ CRITICAL: next_question MUST be a question ending with "?" - declarative stateme
     def edit_field_in_review(self, field_path: str, new_value: Any):
         """Rule 5: Allow targeted edits during review"""
         if not self.state.in_review_mode:
-            raise RuntimeError("Cannot edit: not in review mode")
+            raise AgentContractError("Cannot edit: not in review mode")
         
         self.schema.set_field(field_path, new_value)
         self.state.review_edits[field_path] = new_value
